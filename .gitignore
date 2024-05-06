@@ -1,0 +1,35 @@
+# Environment variables
+.env
+
+# Python compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# VS Code settings
+.vscode/
+
+# macOS specific
+.DS_Store
+
+# Logs and databases
+*.log
+db.sqlite3
+
+# Virtual environment
+env/
+venv/
+
+# Spyder project settings
+.spyproject/
+
+# PyCharm project settings
+.idea/
+
+# Model artifacts and data
+models/
+data/
