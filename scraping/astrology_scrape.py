@@ -20,12 +20,12 @@ def scrape_article_data(url):
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
     try:
-        # Try to find the script containing JSON data
+        
         script = soup.find('script', type='application/ld+json')
-        if script and script.string:  # Check if the script tag and its content exist
+        if script and script.string:  
             data = json.loads(script.string)
         else:
-            data = {}  # Use an empty dictionary if no JSON data is found
+            data = {}  
 
         main_body_element = soup.find('div', class_='editorial-article__feed')
         if main_body_element:
