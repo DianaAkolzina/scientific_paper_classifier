@@ -1,18 +1,12 @@
 import requests
-from bs4 import BeautifulSoup
 import pandas as pd
-import re
 from collections import Counter
-import nltk
 from nltk.corpus import stopwords
 import feedparser
 import requests
 from bs4 import BeautifulSoup
-import pandas as pd
 import re
-from collections import Counter
 import nltk
-from nltk.corpus import stopwords
 import feedparser
 import json
 import urllib.request
