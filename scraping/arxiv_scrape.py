@@ -35,7 +35,6 @@ def fetch_papers(search_query, max_results, base_url, file_path):
                     print(pdf_link)
                     break
 
-            # Fetch and parse PDF content
             main_body, word_count = fetch_and_parse_pdf(pdf_link)
 
             row_data = {
