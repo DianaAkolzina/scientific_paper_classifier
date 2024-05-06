@@ -45,13 +45,12 @@ def parse_article(url):
     soup = BeautifulSoup(response.text, 'html.parser')
 
     title_element = soup.find('meta', attrs={'property': 'og:title'})
-
     title = title_element['content'] if title_element else ''
     print(title)
     title = title.replace('– NaturalNews.com', '').strip()
 
-    author_element = soup.find('meta', attrs={'name': 'author'})
-    author = author_element['content'] if author_element else ''
+    author_div = soup.find('div', {"id": "AuthorInfo"})
+    author = author_div.find('a').get_text() if author_div and author_div.find('a') else 'Unknown Author'
 
     category_elements = soup.find_all('meta', attrs={'property': 'article:tag'})
     categories = [element['content'] for element in category_elements]
@@ -60,7 +59,6 @@ def parse_article(url):
     published_date = published_date_element['content'] if published_date_element else ''
 
     main_body = fetch_main_content(response.text)
-    main_body = clean_text(main_body)
     word_count = len(main_body.split())
 
     row_data = {
@@ -76,7 +74,6 @@ def parse_article(url):
     }
 
     return row_data
-
 def save_row_to_csv(row_data, file_path):
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     df = pd.DataFrame([row_data])
@@ -86,7 +83,7 @@ def save_row_to_csv(row_data, file_path):
     else:
         df.to_csv(file_path, index=False)
 
-base_url = 'https://www.naturalnews.com/category/health/page/'
+base_url = 'https://www.naturalnews.com/category/culture-society/page/'
 file_path = 'data/raw/naturalnews.csv'
 
 for page in range(1, 1000):

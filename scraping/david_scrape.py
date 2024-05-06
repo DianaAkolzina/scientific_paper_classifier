@@ -17,7 +17,7 @@ def scrape_davidwolfe(base_url, file_path):
     with requests.Session() as session:
         session.max_redirects = 10000
 
-        for page in range(1, 10000):
+        for page in range(1, 133):
             page_url = f"{url}page/{page}/" if page > 1 else url
             try:
                 response = session.get(page_url)
