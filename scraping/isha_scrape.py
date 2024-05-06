@@ -18,36 +18,34 @@ def get_article_links(topic_url):
 
 def scrape_article_data(url):
     response = requests.get(url)
-    print(response)
+
     soup = BeautifulSoup(response.text, 'html.parser')
 
     try:
-        title_element = soup.find('h1', class_='css-n0u6yx')
-        title = title_element.text.strip() if title_element else ''
-        print(title)
+        title_element = soup.find('title')
 
-        published_date_element = soup.find('div', class_='css-1uf1z8m')
-        published_date = published_date_element.text.strip() if published_date_element else ''
+        title = title_element.text.strip() if title_element else ''
+
+        published_date_element = soup.find('span', class_='css-1vruq2')
+
+        published_date = published_date_element.text.strip() if published_date_element else 'Unknown'
 
         author = 'Sadhguru'
+        paragraphs = soup.find_all('p')
+        main_body = []
+        for paragraph in paragraphs:
+            if paragraph.find('img') is None:
+                main_body.append(paragraph.text.strip())
 
-        main_body_element = soup.find('div', class_='css-exoff3')
-        if main_body_element:
-            paragraphs = main_body_element.find_all('p')
-            main_body = ' '.join([p.text.strip() for p in paragraphs])
-            words = main_body.split()
-            word_count = len(words)
-            most_common_word, most_common_count = Counter(words).most_common(1)[0]
-        else:
-            main_body = ""
-            words = []
-            word_count = 0
-            most_common_word = "N/A"
-            most_common_count = 0
+        main_body_text = ' '.join(main_body)
+        words = main_body_text.split()
+        word_count = len(words)
+        most_common_word, most_common_count = Counter(words).most_common(1)[0]
 
         related_tags = soup.find_all('a', class_='chakra-tag css-1xx9vtx')
         all_categories = [tag.text.strip() for tag in related_tags]
         primary_category = all_categories[0] if all_categories else ''
+
 
         article_data = {
             'Published': published_date,
@@ -90,6 +88,6 @@ def scrape_isha_sadhguru(base_url, num_pages):
 
 if __name__ == '__main__':
     isha_sadhguru_base_url = os.getenv('ISHA_SADHGURU_BASE_URL', 'https://isha.sadhguru.org/en/wisdom/type/article')
-    num_pages = 40
+    num_pages = 1
     scrape_isha_sadhguru(isha_sadhguru_base_url, num_pages)
     print("Scraping completed and data saved.")
