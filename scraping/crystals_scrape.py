@@ -75,16 +75,13 @@ def save_row_to_csv(row_data, file_path):
     else:
         df.to_csv(file_path, index=False)
 
-# Define the base URL and output file path
 base_url = 'https://www.holisticshop.co.uk/articles/?page='
 file_path = '..data/raw/cryst.csv'
 
-# Fetch article links from pages 1 to 5
 for page in range(1, 6):
     url = base_url + str(page)
     article_links = fetch_article_links(url)
 
-    # Parse each article and save the data row by row
     for link in article_links:
         row_data = parse_article(link)
         print(row_data)
