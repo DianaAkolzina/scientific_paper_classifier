@@ -28,6 +28,7 @@ def scrape_collective_evolution(base_url):
 
     for url in urls:
         response = requests.get(url)
+        print(response)
         soup = BeautifulSoup(response.content, "html.parser")
         article_links = soup.find_all("a", class_="blog-listing__title")
 
@@ -69,4 +70,6 @@ if __name__ == '__main__':
 
 
     collective_evolution_base_url = "https://www.collective-evolution.com"
+
     df_collective_evolution = scrape_collective_evolution(collective_evolution_base_url)
+    df_collective_evolution.to_csv('data/raw/collective_evolution_2.csv', index=False)
