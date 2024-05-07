@@ -49,3 +49,4 @@ mlruns
 # IDE #
 *.vscode
 *.csv:Zone.Identifier
+*Zone.Identifier
