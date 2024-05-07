@@ -18,7 +18,7 @@ def print_dataframe_info(file_path):
 
         print("First few rows:")
         print(df.head())
-
+        print(df.columns)
         print("Description:")
         print(df.describe(include='all'))
 

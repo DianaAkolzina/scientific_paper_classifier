@@ -88,6 +88,6 @@ def scrape_isha_sadhguru(base_url, num_pages):
 
 if __name__ == '__main__':
     isha_sadhguru_base_url = os.getenv('ISHA_SADHGURU_BASE_URL', 'https://isha.sadhguru.org/en/wisdom/type/article')
-    num_pages = 1
+    num_pages = 50
     scrape_isha_sadhguru(isha_sadhguru_base_url, num_pages)
     print("Scraping completed and data saved.")
