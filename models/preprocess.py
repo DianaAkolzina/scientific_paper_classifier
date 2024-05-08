@@ -111,17 +111,22 @@ def clean_text(text):
     return text
 
 
+import pandas as pd
+from sklearn.feature_extraction.text import CountVectorizer
+
 def preprocessing_pipeline(df, text_column, author_column, label_column):
-    """Applies text cleaning, English filtering, and removes specific common words from the text column of a DataFrame based on both label and author-specific frequency conditions."""
+    """Applies text cleaning, English filtering, and removes specific common words from the text column of a DataFrame based on both label and author-specific frequency conditions, excluding authors with less than 20% representation."""
 
     df = df.dropna(subset=[text_column])
 
     df = filter_english_text(df, text_column)
 
     df['Processed Text'] = df[text_column].apply(preprocess_text)
-    df['Processed Text'] = df[text_column].apply(lemmatize_text)
+    df['Processed Text'] = df['Processed Text'].apply(lemmatize_text)
 
     vectorizer = CountVectorizer()
+
+    author_counts = df[author_column].value_counts(normalize=True)
 
     def filter_words(group_df, comparison_df, vectorizer):
         counts = vectorizer.fit_transform(group_df['Processed Text']).toarray()
@@ -129,7 +134,7 @@ def preprocessing_pipeline(df, text_column, author_column, label_column):
         word_freq = (counts > 0).sum(axis=0) / len(group_df)
         common_words = feature_names[word_freq > 0.5]
         words_to_remove = []
-        print(common_words)
+
         for word in common_words:
             if word in vectorizer.vocabulary_:
                 other_counts = vectorizer.transform(comparison_df['Processed Text']).toarray()
@@ -145,13 +150,14 @@ def preprocessing_pipeline(df, text_column, author_column, label_column):
         label_df['Processed Text'] = label_df['Processed Text'].apply(lambda text: ' '.join([word for word in text.split() if word not in label_words_to_remove]))
         df.loc[label_df.index, 'Processed Text'] = label_df['Processed Text']
 
-    for author in df[author_column].unique():
-        author_df = df[df[author_column] == author]
-        other_author_df = df[df[author_column] != author]
-        author_words_to_remove = filter_words(author_df, other_author_df, vectorizer)
-        author_df['Processed Text'] = author_df['Processed Text'].apply(lambda text: ' '.join([word for word in text.split() if word not in author_words_to_remove]))
-        df.loc[author_df.index, 'Processed Text'] = author_df['Processed Text']
-
+    for author, count in author_counts.items():
+        if count >= 0.2:  
+            author_df = df[df[author_column] == author]
+            other_author_df = df[df[author_column] != author]
+            author_words_to_remove = filter_words(author_df, other_author_df, vectorizer)
+            author_df['Processed Text'] = author_df['Processed Text'].apply(lambda text: ' '.join([word for word in text.split() if word not in author_words_to_remove]))
+            df.loc[author_df.index, 'Processed Text'] = author_df['Processed Text']
 
     return df
+
 
