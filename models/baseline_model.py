@@ -35,7 +35,7 @@ def train_svm_model(model, X, y):
     Returns:
         sklearn.svm.SVC: The trained SVM model.
     """
-    model.fit(X_train, y_train)
+    model.fit(X, y)
     return model
 
 def evaluate_model(model, X_test, y_test):
