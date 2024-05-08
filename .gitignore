@@ -32,7 +32,6 @@ venv/
 .idea/
 
 # Model artifacts and data
-models/
 data/
 
 # inteliJ #
