@@ -8,6 +8,8 @@ from unidecode import unidecode
 import io
 from google.cloud import storage
 import os
+from sklearn.feature_extraction.text import CountVectorizer
+
 
 # Load the English language model for Spacy
 nlp = spacy.load("en_core_web_sm")
@@ -108,18 +110,48 @@ def clean_text(text):
     text = text.lower()
     return text
 
-def preprocessing_pipeline(df, text_column):
-    """Applies text cleaning, English filtering, and updates most frequent words in a DataFrame."""
+
+def preprocessing_pipeline(df, text_column, author_column, label_column):
+    """Applies text cleaning, English filtering, and removes specific common words from the text column of a DataFrame based on both label and author-specific frequency conditions."""
+
     df = df.dropna(subset=[text_column])
+
     df = filter_english_text(df, text_column)
-    # df = standardize_dates(df, date_column)
 
-    if not df.empty:
-        df['Processed Text'] = df[text_column].apply(preprocess_text)
-        df = filter_and_update_categories(df)
-        df = lemmatize_text(df)
-        df['Most Frequent Word'] = df['Processed Text'].apply(get_most_frequent_word)
-        df['Word Count'] = df['Processed Text'].apply(lambda n: len(n.split()))
-       # df['Most Frequent Word Combination'] = df['Processed Text'].apply(get_most_frequent_bigram)
+    df['Processed Text'] = df[text_column].apply(preprocess_text)
+    df['Processed Text'] = df[text_column].apply(lemmatize_text)
 
-    return df[['Title', 'Author', 'Published Date', 'Word Count', 'Most Frequent Word', 'Label', 'Processed Text']]
+    vectorizer = CountVectorizer()
+
+    def filter_words(group_df, comparison_df, vectorizer):
+        counts = vectorizer.fit_transform(group_df['Processed Text']).toarray()
+        feature_names = vectorizer.get_feature_names_out()
+        word_freq = (counts > 0).sum(axis=0) / len(group_df)
+        common_words = feature_names[word_freq > 0.5]
+        words_to_remove = []
+        print(common_words)
+        for word in common_words:
+            if word in vectorizer.vocabulary_:
+                other_counts = vectorizer.transform(comparison_df['Processed Text']).toarray()
+                other_word_freq = (other_counts[:, vectorizer.vocabulary_[word]] > 0).sum() / len(comparison_df)
+                if other_word_freq < 0.3:
+                    words_to_remove.append(word)
+        return words_to_remove
+
+    for label in df[label_column].unique():
+        label_df = df[df[label_column] == label]
+        other_label_df = df[df[label_column] != label]
+        label_words_to_remove = filter_words(label_df, other_label_df, vectorizer)
+        label_df['Processed Text'] = label_df['Processed Text'].apply(lambda text: ' '.join([word for word in text.split() if word not in label_words_to_remove]))
+        df.loc[label_df.index, 'Processed Text'] = label_df['Processed Text']
+
+    for author in df[author_column].unique():
+        author_df = df[df[author_column] == author]
+        other_author_df = df[df[author_column] != author]
+        author_words_to_remove = filter_words(author_df, other_author_df, vectorizer)
+        author_df['Processed Text'] = author_df['Processed Text'].apply(lambda text: ' '.join([word for word in text.split() if word not in author_words_to_remove]))
+        df.loc[author_df.index, 'Processed Text'] = author_df['Processed Text']
+
+
+    return df
+
