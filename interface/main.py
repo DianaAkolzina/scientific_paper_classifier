@@ -1,21 +1,24 @@
 import os
-from data.getdata import get_data_from_gcp
-from models.baseline_model import vectorize_data, initialize_model, train_svm_model, evaluate_model
-from models.preprocess import preprocessing_pipeline
+from scientific_paper_classifier.data.getdata import get_data_from_gcp
+from scientific_paper_classifier.models.baseline_model import vectorize_data, initialize_model, train_svm_model, evaluate_model
+from scientific_paper_classifier.models.preprocess import preprocessing_pipeline
 from sklearn.model_selection import train_test_split
 
 #Pull the data
 BUCKET_NAME = os.getenv("BUCKET_NAME")
-filename = ''
+filename = 'combined_test_main.csv'
 
 df = get_data_from_gcp(BUCKET_NAME, filename)
 
-#Preprocess the data
-text_column = df['Main Body']
-author_column = df['Author']
-label_column = df['Label']
+sample_size = 3000  # Set the desired sample size
+df_sample = df.sample(n=sample_size, random_state=42)
 
-preprocessed_data = preprocessing_pipeline(df, text_column, author_column, label_column)
+#Preprocess the data
+text_column = df_sample['Main Body']
+author_column = df_sample['Author']
+label_column = df_sample['Label']
+
+preprocessed_data = preprocessing_pipeline(df_sample, text_column, author_column, label_column)
 
 #Split data into features and target
 X = preprocessed_data['Processed Text']
