@@ -25,4 +25,5 @@ def save_data_to_gcp(BUCKET_NAME, file_name, df):
     df.to_csv(csv_buffer, index=False)
     csv_buffer.seek(0)
     # Upload the CSV bytes object to GCS
-    blob.upload_from_file(csv_buffer)
+    blob.upload_from_file(csv_buffer, content_type='text/csv')
+    print(f"DataFrame saved to GCS bucket: {BUCKET_NAME}/cleaned_data/{file_name}")
