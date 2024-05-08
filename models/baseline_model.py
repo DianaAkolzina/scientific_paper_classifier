@@ -75,6 +75,6 @@ X_tfidf = vectorize_data(X)
 X_train, X_test, y_train, y_test = train_test_split(X_tfidf, y, test_size=0.2, random_state=42)
 
 svm_model = initialize_model()
-trained_model = train_model(svm_model, X_train, y_train)
+trained_model = train_svm_model(svm_model, X_train, y_train)
 evaluate_model(trained_model, X_test, y_test)
 """
