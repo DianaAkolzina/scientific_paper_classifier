@@ -1,9 +1,6 @@
 import io
-import os
 import pandas as pd
 from google.cloud import storage
-
-BUCKET_NAME = os.getenv("BUCKET_NAME")
 
 def get_data_from_gcp(BUCKET_NAME, file_name):
     # Create a storage client
