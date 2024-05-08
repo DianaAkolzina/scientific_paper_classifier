@@ -15,7 +15,6 @@ google-cloud-bigquery
 google-cloud-storage
 db-dtypes
 pyarrow
-keras.preprocessing.sequence
 # Trick to install the version of Tensorflow depending on your processor: darwin == Mac, ARM == M1
 tensorflow==2.10.0; sys_platform != 'darwin' # Windows & Ubuntu Intel chips
 
