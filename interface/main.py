@@ -6,10 +6,13 @@ from models.preprocess import preprocessing_pipeline, preprocessing_pipeline_sam
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import SVC
+from google.cloud import storage
+import joblib
+import os
 
 # Pull the data
 BUCKET_NAME = os.getenv("BUCKET_NAME")
-filename = 'cleaned_data/Updated_df_3000.csv'
+filename = 'cleaned_data/Updated_df_300.csv'
 df = get_data_from_gcp(BUCKET_NAME, filename)
 
 # Preprocess the data
@@ -57,3 +60,43 @@ processed_new_text = preprocessing_pipeline_sample(new_text)
 new_text_tfidf = tfidf.transform([processed_new_text])
 predicted_label = trained_model.predict(new_text_tfidf)
 print("Predicted Label:", predicted_label[0])
+
+
+def save_model_to_gcp(model, bucket_name, destination_blob_name):
+    """Saves the model to a Google Cloud Storage bucket."""
+
+    model_filename = 'model.joblib'
+    joblib.dump(model, model_filename)
+
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(destination_blob_name)
+
+    blob.upload_from_filename(model_filename)
+
+    os.remove(model_filename)
+
+    print(f"Model saved to GCS bucket {bucket_name} under {destination_blob_name}")
+
+
+def load_model_from_gcp(bucket_name, source_blob_name):
+    """Loads the model from a Google Cloud Storage bucket."""
+
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(source_blob_name)
+
+    model_filename = 'downloaded_model.joblib'
+    blob.download_to_filename(model_filename)
+
+    model = joblib.load(model_filename)
+
+    os.remove(model_filename)
+
+    return model
+
+
+
+save_model_to_gcp(trained_model, BUCKET_NAME, 'svm_model.joblib')
+
+loaded_model = load_model_from_gcp(BUCKET_NAME, 'svm_model.joblib')
