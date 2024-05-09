@@ -2,7 +2,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, precision_score, recall_score, f1_score
-
+import numpy as np
 def vectorize_data(X):
     """
     Converts text data into a numerical format using TF-IDF.
@@ -37,15 +37,44 @@ def train_svm_model(model, X, y):
     """
     model.fit(X, y)
     return model
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-def evaluate_model(model, X_test, y_test):
+def plot_confusion_matrix(cm, classes,
+                          normalize=False,
+                          title='Confusion matrix',
+                          cmap=plt.cm.Blues):
     """
-    Evaluates the performance of the SVM model on the test data.
-    Args:
-        model (sklearn.svm.SVC): The trained SVM model.
-        X_test (scipy.sparse.csr.csr_matrix): The testing input data.
-        y_test (numpy.ndarray): The testing target labels.
+    This function prints and plots the confusion matrix.
+    Normalization can be applied by setting `normalize=True`.
     """
+    if normalize:
+        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+        print("Normalized confusion matrix")
+    else:
+        print('Confusion matrix, without normalization')
+
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    plt.title(title)
+    plt.colorbar()
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes, rotation=45)
+    plt.yticks(tick_marks, classes)
+
+    fmt = '.2f' if normalize else 'd'
+    thresh = cm.max() / 2.
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            plt.text(j, i, format(cm[i, j], fmt),
+                     horizontalalignment="center",
+                     color="white" if cm[i, j] > thresh else "black")
+
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+    plt.show()
+
+def evaluate_model(model, X_test, y_test, class_names):
     y_pred = model.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
     print(f"Accuracy: {accuracy:.2f}")
@@ -64,6 +93,8 @@ def evaluate_model(model, X_test, y_test):
 
     print("Classification Report:")
     print(classification_report(y_test, y_pred))
+
+    plot_confusion_matrix(cm, classes=class_names, title='Confusion Matrix')
 
 """
 # Example usage
