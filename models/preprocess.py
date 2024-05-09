@@ -64,14 +64,33 @@ def preprocess_text(text):
     return text
 
 def lemmatize_text(text):
-    """Lemmatizes the given text, removing stopwords, very short words, and certain parts of speech."""
+    """Lemmatizes the given text, removing stopwords, very short words, certain parts of speech, and named entities."""
     doc = nlp(text)
-    filtered_tokens = [
-        token.lemma_ for token in doc
-        if not token.is_stop and len(token.lemma_) > 2 and token.lemma_.isalpha()
-        and token.pos_ not in ['PRON', 'DET']
-    ]
+    ents = set([ent.text for ent in doc.ents])
+    filtered_tokens = []
+    for token in doc:
+        if not token.is_stop and len(token.lemma_) > 2 and token.lemma_.isalpha() \
+           and token.pos_ not in ['PRON', 'DET'] and token.text not in ents:
+            filtered_tokens.append(token.lemma_)
     return ' '.join(filtered_tokens)
+
+def extract_middle_text(texts, word_count=400):
+    """Extracts `word_count` words from the middle of the text or each text in a pandas Series."""
+    def extract_from_single_text(text):
+        words = text.split()
+        total_words = len(words)
+        if total_words <= word_count:
+            return text
+        start_index = (total_words - word_count) // 2
+        return ' '.join(words[start_index:start_index + word_count])
+
+    if isinstance(texts, str):
+        return extract_from_single_text(texts)
+    elif isinstance(texts, pd.Series):
+        return texts.apply(extract_from_single_text)
+    else:
+        raise TypeError("Input must be a string or a pandas Series.")
+
 
 
 def detect_english(text):
@@ -123,7 +142,7 @@ def preprocessing_pipeline(df, text_column, author_column, label_column):
 
     df['Processed Text'] = df[text_column].apply(preprocess_text)
     df['Processed Text'] = df['Processed Text'].apply(lemmatize_text)
-
+    df['Processed Text'] = extract_middle_text(df['Processed Text'], 400)
     vectorizer = CountVectorizer()
 
     author_counts = df[author_column].value_counts(normalize=True)
@@ -151,7 +170,7 @@ def preprocessing_pipeline(df, text_column, author_column, label_column):
         df.loc[label_df.index, 'Processed Text'] = label_df['Processed Text']
 
     for author, count in author_counts.items():
-        if count >= 0.2:  
+        if count >= 0.2:
             author_df = df[df[author_column] == author]
             other_author_df = df[df[author_column] != author]
             author_words_to_remove = filter_words(author_df, other_author_df, vectorizer)
@@ -160,4 +179,9 @@ def preprocessing_pipeline(df, text_column, author_column, label_column):
 
     return df
 
+def preprocessing_pipeline_sample(text ):
 
+    text = preprocess_text(text)
+    text = lemmatize_text(text)
+    text = extract_middle_text(text)
+    return text
