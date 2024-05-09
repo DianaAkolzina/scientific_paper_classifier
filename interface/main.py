@@ -9,7 +9,7 @@ from sklearn.svm import SVC
 
 # Pull the data
 BUCKET_NAME = os.getenv("BUCKET_NAME")
-filename = 'cleaned_data/Updated_df_30000.csv'
+filename = 'cleaned_data/Updated_df_3000.csv'
 df = get_data_from_gcp(BUCKET_NAME, filename)
 
 # Preprocess the data
@@ -45,13 +45,13 @@ X_train, X_test, y_train, y_test = train_test_split(X_tfidf, y, test_size=0.2, r
 # Initialize, train and evaluate the SVM model
 svm_model = initialize_model()
 trained_model = train_svm_model(svm_model, X_train, y_train)
-evaluate_model(trained_model, X_test, y_test)
+class_names = ['1', '0']
+evaluate_model(trained_model, X_test, y_test, class_names)
 
-file_path = 'data/sample_scientific/your_file.txt'
+new_text = '''
+China’s centralized efforts to contain the epidemic
+'''
 
-# Open the text file and read its contents
-with open(file_path, 'r', encoding='utf-8') as file:
-    new_text = file.read()
 
 processed_new_text = preprocessing_pipeline_sample(new_text)
 new_text_tfidf = tfidf.transform([processed_new_text])
