@@ -6,6 +6,9 @@ from models.preprocess import preprocessing_pipeline, preprocessing_pipeline_sam
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import SVC
+from google.cloud import storage
+import joblib
+import os
 import pickle
 
 # Pull the data
@@ -61,8 +64,6 @@ new_text_tfidf = tfidf.transform([processed_new_text])
 predicted_label = trained_model.predict(new_text_tfidf)
 print("Predicted Label:", predicted_label[0])
 
-import joblib
-from google.cloud import storage
 
 def save_model_to_gcp(model, bucket_name, destination_blob_name):
     """Saves the model to a Google Cloud Storage bucket."""
@@ -97,6 +98,8 @@ def load_model_from_gcp(bucket_name, source_blob_name):
 
     return model
 
-print("saving model")
-save_model_to_gcp(trained_model, BUCKET_NAME, 'models/baseline_model.joblib')
-print("model saved")
+
+
+save_model_to_gcp(trained_model, BUCKET_NAME, 'svm_model.joblib')
+
+loaded_model = load_model_from_gcp(BUCKET_NAME, 'svm_model.joblib')
