@@ -8,8 +8,7 @@ from unidecode import unidecode
 import io
 from google.cloud import storage
 import os
-from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
-import pickle
+from sklearn.feature_extraction.text import CountVectorizer
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.io.gcp.internal.clients import bigquery
@@ -27,22 +26,35 @@ BUCKET_NAME = os.getenv("BUCKET_NAME")
 
 class PreprocessTextFn(beam.DoFn):
     def process(self, element):
-
         df = pd.DataFrame([element])
+
+        if df.empty:
+            logging.warning("Empty DataFrame encountered. Skipping processing.")
+            return
 
         text_column = 'Processed_Text'
         author_column = 'Author'
         label_column = 'Label'
+
         processed_df = preprocessing_pipeline(df, text_column, author_column, label_column)
-        processed_text = processed_df.loc[0, 'Processed_Text']
 
-        logging.info(f"Processed text: {processed_text}")
-        yield {
-            'Processed_Text': processed_text,
-            'Author': element['Author'],
-            'Label': element['Label']
-        }
+        if not processed_df.empty:
+            processed_text = processed_df.iloc[0]['Processed_Text']
+            author = processed_df.iloc[0]['Author']
+            label = int(processed_df.iloc[0]['Label'])
 
+            if pd.isna(author) or author.strip() == '':
+                logging.warning(f"Empty author value encountered for processed text: {processed_text}. Skipping yield.")
+                return
+
+            logging.info(f"Processed text: {processed_text}")
+            yield {
+                'Processed_Text': processed_text,
+                'Author': author,
+                'Label': label
+            }
+        else:
+            logging.warning("Empty DataFrame after preprocessing. Skipping yield.")
 
 def filter_and_update_categories(df):
     main_cat_counts = df['Main Category'].value_counts()
@@ -89,8 +101,7 @@ def preprocess_text(text):
     text = re.sub(r'<.*?>', '', text)  # Remove HTML tags
     text = re.sub(r'[{}]'.format(re.escape(string.punctuation)), ' ', text)  # Replace punctuation with space
     text = re.sub(r'\s+', ' ', text)  # Collapse multiple spaces into one
-    text = re.sub(r'\d', ' ', text)
-    text = re.sub(r'\n', " ", text)# Remove new line
+    text = re.sub(r'\d', ' ', text)  # Remove digits
     return text
 
 def lemmatize_text(text):
@@ -225,80 +236,40 @@ from apache_beam.io.gcp.internal.clients.bigquery import TableSchema, TableField
 
 def run(argv=None):
     PROJECT_ID = 'scientific-paper-classifier'
-    GCS_TEMP_LOCATION = f'gs://{BUCKET_NAME}/temp'
-    REGION = 'europe-west1'
+    GCS_TEMP_LOCATION = 'gs://scientific_paper_classifier-bucket/data_cloud'
 
     pipeline_options = PipelineOptions(
         project=PROJECT_ID,
         temp_location=GCS_TEMP_LOCATION,
         job_name='text-preprocessing',
         save_main_session=True,
-        staging_location=GCS_TEMP_LOCATION,
-        region=REGION
+        staging_location=GCS_TEMP_LOCATION
     )
 
     schema = TableSchema(fields=[
-        TableFieldSchema(name='Processed_Text', type='STRING', mode='REQUIRED'),
-        TableFieldSchema(name='Author', type='STRING', mode='REQUIRED'),
-        TableFieldSchema(name='Label', type='STRING', mode='REQUIRED')
+    TableFieldSchema(name='Processed_Text', type='STRING', mode='REQUIRED'),
+    TableFieldSchema(name='Author', type='STRING', mode='NULLABLE'),
+    TableFieldSchema(name='Label', type='INTEGER', mode='REQUIRED')
     ])
 
     with beam.Pipeline(options=pipeline_options) as p:
         data = (
-            p
-            | 'Read from BigQuery' >> ReadFromBigQuery(
-                query=f'SELECT Processed_Text, Author, Label FROM `{PROJECT_ID}.data_train.all`',
-                gcs_location=GCS_TEMP_LOCATION,
-                use_standard_sql=True)
-            | 'Apply Preprocessing' >> beam.ParDo(PreprocessTextFn())
-            | 'Write Results to BigQuery' >> WriteToBigQuery(
-                table='processed_text',
-                dataset='data_train',
-                project=PROJECT_ID,
-                schema=schema,
-                method="STREAMING_INSERTS",
-                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-                write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)
-        )
+        p
+        | 'Read from BigQuery' >> ReadFromBigQuery(
+            query=f'SELECT Processed_Text, Author, Label FROM `{PROJECT_ID}.data_train.all` LIMIT 13000',
+            gcs_location=GCS_TEMP_LOCATION,
+            use_standard_sql=True)
+        | 'Apply Preprocessing' >> beam.ParDo(PreprocessTextFn())
+        | 'Write Results to BigQuery' >> WriteToBigQuery(
+            table='processed_text_13000',
+            dataset='data_train',
+            project=PROJECT_ID,
+            schema=schema,
+            method="STREAMING_INSERTS",
+            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)
+    )
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
     run()
-
-def transform_new_text(X, new_text):
-    tfidf = TfidfVectorizer()
-    X_tfidf = tfidf.fit_transform(X)
-    return X_tfidf.transform(new_text)
-
-def save_vectorizer_to_gcs(vectorizer, bucket_name, vectorizer_blob_name):
-    vectorizer_filename = 'vectorizer.pkl'
-
-    with open(vectorizer_filename, 'wb') as file:
-        pickle.dump(vectorizer, file)
-
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(bucket_name)
-
-    vectorizer_blob = bucket.blob(vectorizer_blob_name)
-    vectorizer_blob.upload_from_filename(vectorizer_filename)
-
-    os.remove(vectorizer_filename)
-
-    print(f"Vectorizer saved to GCS bucket {bucket_name} under {vectorizer_blob_name}")
-
-def load_vectorizer_from_gcs(bucket_name, vectorizer_blob_name):
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(bucket_name)
-
-    vectorizer_blob = bucket.blob(vectorizer_blob_name)
-
-    vectorizer_filename = 'downloaded_vectorizer.pkl'
-
-    vectorizer_blob.download_to_filename(vectorizer_filename)
-
-    with open(vectorizer_filename, 'rb') as file:
-        vectorizer = pickle.load(file)
-
-    os.remove(vectorizer_filename)
-
-    return vectorizer
