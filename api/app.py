@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import os
-from interface.main_api import load_model_from_gcp
+from interface.main_api import load_model_from_gcp, predict_baseline
 from models.preprocess import preprocessing_pipeline_sample
 from models.baseline_model import vectorize_data
 import joblib
@@ -62,20 +62,24 @@ class UserPost(BaseModel):
 async def user_post(article_text: UserPost):
     model = app.state.model
     assert model is not None
-    print('preprocessing data...')
-    processed_new_text = preprocessing_pipeline_sample(article_text.new_text)
+    # print('preprocessing data...')
+    # processed_new_text = preprocessing_pipeline_sample(article_text.new_text)
 
-    print("vectorising data...")
-    new_text_tfidf = vectorize_data([processed_new_text])
+    # print("vectorising data...")
+    # new_text_tfidf = vectorize_data([processed_new_text])
 
-    print("predicting...")
-    predicted_label = model.predict(new_text_tfidf)
+    # print("predicting...")
+    # predicted_label = model.predict(new_text_tfidf)
 
-    if predicted_label[0]==0:
+    print("predicting..")
+    predicted_label = predict_baseline(article_text.new_text)
+
+    if predicted_label==0:
         scientific_classifier = "scientific"
     else:
         scientific_classifier = "pseudoscientific"
+    print("end")
     return {
-    'greeting': 'Hello'
+    'greeting': scientific_classifier
 }
     # return {'Your text is' : scientific_classifier,}

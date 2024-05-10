@@ -1,11 +1,13 @@
 import os
 import pandas as pd
-from data.getdata import get_data_from_gcp
+from data.getdata import get_data_from_gcp, save_data_to_gcp
 from models.baseline_model import initialize_model, train_svm_model, evaluate_model
-from models.preprocess import preprocessing_pipeline, preprocessing_pipeline_sample
+from models.preprocess import preprocessing_pipeline, preprocessing_pipeline_sample, save_vectorizer_to_gcs, load_vectorizer_from_gcs
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import SVC
+import pickle
+
 
 def get_data(data_size):
     # Pull the data
@@ -34,15 +36,22 @@ def preprocess_data(df):
         for label in combined_df['Label'].cat.categories
     ])
     balanced_df = balanced_df.sample(frac=1, random_state=42).reset_index(drop=True)
+    save_data_to_gcp(BUCKET_NAME, 'cleaned_data/balanced_df.csv', balanced_df)
     return balanced_df
 
-def train_evaluate_model(balanced_df):
+def train_evaluate_model():
+    balanced_df = get_data_from_gcp(BUCKET_NAME, 'cleaned_data/balanced_df.csv')
+
     X = balanced_df['Processed Text']
     y = balanced_df['Label']
 
     # Initialize and fit the TF-IDF Vectorizer
     tfidf = TfidfVectorizer()
-    X_tfidf = tfidf.fit_transform(X)
+    X_tfidf = tfidf.fit(X)
+
+    # save vectorizer
+    save_vectorizer_to_gcs(X_tfidf, BUCKET_NAME, 'models/x_tfidf.pkl')
+    X_tfidf = tfidf.transform(X)
 
     # Train, test, split
     X_train, X_test, y_train, y_test = train_test_split(X_tfidf, y, test_size=0.2, random_state=42)
@@ -95,12 +104,13 @@ def load_model_from_gcp(bucket_name, source_blob_name):
 def predict_baseline(new_text = '''
     China’s centralized efforts to contain the epidemic
     '''):
-
+    BUCKET_NAME = os.getenv("BUCKET_NAME")
     model = load_model_from_gcp(BUCKET_NAME, 'models/baseline_model.joblib')
+    tfidf = load_vectorizer_from_gcs(BUCKET_NAME, 'models/x_tfidf.pkl')
     processed_new_text = preprocessing_pipeline_sample(new_text)
     new_text_tfidf = tfidf.transform([processed_new_text])
     predicted_label = model.predict(new_text_tfidf)
-    # print("Predicted Label:", predicted_label[0])
+    print("Predicted Label:", predicted_label[0])
     return predicted_label[0]
 
 
@@ -108,15 +118,24 @@ def predict_baseline(new_text = '''
 if __name__== "__main__":
     BUCKET_NAME = os.getenv("BUCKET_NAME")
     print("getting data...")
-    data_main = get_data(data_size = 300)
+    data_main = get_data(data_size = 3000)
 
     print("preprocessing data...")
     preprocess_main = preprocess_data(data_main)
 
     print("training model...")
-    model_trained = train_evaluate_model(preprocess_main)
+    model_trained = train_evaluate_model()
 
     print("saving model")
-    save_model_to_gcp(model_trained, BUCKET_NAME, 'models/baseline_model.joblib')
+    save_model_to_gcp(model_trained, BUCKET_NAME, 'models/baseline_model_v3000.joblib')
 
     print("model saved")
+    print("predicting ...")
+    predict_baseline(new_text = '''
+    In a speech in Moscow’s Red Square before thousands of soldiers, President Vladimir Putin praised his army fighting in Ukraine and accused “Western elites” of fomenting conflicts around the world.
+
+Putin warned his nuclear forces were “always” on alert and said Russia would not tolerate any Western threats.
+
+Security in the capital was tight in the run-up to this year’s parade, amid repeated Ukrainian strikes on Russian territory and after an attack on a concert hall near the capital in March killed dozens.
+    ''')
+    print("end")

@@ -6,6 +6,7 @@ from models.preprocess import preprocessing_pipeline, preprocessing_pipeline_sam
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import SVC
+import pickle
 
 # Pull the data
 BUCKET_NAME = os.getenv("BUCKET_NAME")
@@ -38,6 +39,8 @@ y = balanced_df['Label']
 # Initialize and fit the TF-IDF Vectorizer
 tfidf = TfidfVectorizer()
 X_tfidf = tfidf.fit_transform(X)
+
+save_vectorizer_to_gcs(X_tfidf, BUCKET_NAME, 'models/x_tfidf.pkl')
 
 # Train, test, split
 X_train, X_test, y_train, y_test = train_test_split(X_tfidf, y, test_size=0.2, random_state=42)
