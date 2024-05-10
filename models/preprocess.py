@@ -60,7 +60,8 @@ def preprocess_text(text):
     text = re.sub(r'<.*?>', '', text)  # Remove HTML tags
     text = re.sub(r'[{}]'.format(re.escape(string.punctuation)), ' ', text)  # Replace punctuation with space
     text = re.sub(r'\s+', ' ', text)  # Collapse multiple spaces into one
-    text = re.sub(r'\d', ' ', text)  # Remove digits
+    text = re.sub(r'\d', ' ', text)
+    text = re.sub(r'\n', " ", text)# Remove new line
     return text
 
 def lemmatize_text(text):

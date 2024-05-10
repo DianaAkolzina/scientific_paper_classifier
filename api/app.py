@@ -62,9 +62,13 @@ class UserPost(BaseModel):
 async def user_post(article_text: UserPost):
     model = app.state.model
     assert model is not None
-
+    print('preprocessing data...')
     processed_new_text = preprocessing_pipeline_sample(article_text.new_text)
+
+    print("vectorising data...")
     new_text_tfidf = vectorize_data([processed_new_text])
+
+    print("predicting...")
     predicted_label = model.predict(new_text_tfidf)
 
     if predicted_label[0]==0:
