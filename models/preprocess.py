@@ -8,7 +8,8 @@ from unidecode import unidecode
 import io
 from google.cloud import storage
 import os
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+import pickle
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.io.gcp.internal.clients import bigquery
@@ -88,7 +89,8 @@ def preprocess_text(text):
     text = re.sub(r'<.*?>', '', text)  # Remove HTML tags
     text = re.sub(r'[{}]'.format(re.escape(string.punctuation)), ' ', text)  # Replace punctuation with space
     text = re.sub(r'\s+', ' ', text)  # Collapse multiple spaces into one
-    text = re.sub(r'\d', ' ', text)  # Remove digits
+    text = re.sub(r'\d', ' ', text)
+    text = re.sub(r'\n', " ", text)# Remove new line
     return text
 
 def lemmatize_text(text):
@@ -262,3 +264,41 @@ def run(argv=None):
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
     run()
+
+def transform_new_text(X, new_text):
+    tfidf = TfidfVectorizer()
+    X_tfidf = tfidf.fit_transform(X)
+    return X_tfidf.transform(new_text)
+
+def save_vectorizer_to_gcs(vectorizer, bucket_name, vectorizer_blob_name):
+    vectorizer_filename = 'vectorizer.pkl'
+
+    with open(vectorizer_filename, 'wb') as file:
+        pickle.dump(vectorizer, file)
+
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+
+    vectorizer_blob = bucket.blob(vectorizer_blob_name)
+    vectorizer_blob.upload_from_filename(vectorizer_filename)
+
+    os.remove(vectorizer_filename)
+
+    print(f"Vectorizer saved to GCS bucket {bucket_name} under {vectorizer_blob_name}")
+
+def load_vectorizer_from_gcs(bucket_name, vectorizer_blob_name):
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+
+    vectorizer_blob = bucket.blob(vectorizer_blob_name)
+
+    vectorizer_filename = 'downloaded_vectorizer.pkl'
+
+    vectorizer_blob.download_to_filename(vectorizer_filename)
+
+    with open(vectorizer_filename, 'rb') as file:
+        vectorizer = pickle.load(file)
+
+    os.remove(vectorizer_filename)
+
+    return vectorizer
