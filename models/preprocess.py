@@ -207,6 +207,40 @@ def preprocessing_pipeline(df, text_column, author_column, label_column):
             df.loc[author_df.index, 'Processed_Text'] = author_df['Processed_Text']
 
     return df
+    
+def save_vectorizer_to_gcs(vectorizer, bucket_name, vectorizer_blob_name):
+    vectorizer_filename = 'vectorizer.pkl'
+
+    with open(vectorizer_filename, 'wb') as file:
+        pickle.dump(vectorizer, file)
+
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+
+    vectorizer_blob = bucket.blob(vectorizer_blob_name)
+    vectorizer_blob.upload_from_filename(vectorizer_filename)
+
+    os.remove(vectorizer_filename)
+
+    print(f"Vectorizer saved to GCS bucket {bucket_name} under {vectorizer_blob_name}")
+
+def load_vectorizer_from_gcs(bucket_name, vectorizer_blob_name):
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+
+    vectorizer_blob = bucket.blob(vectorizer_blob_name)
+
+    vectorizer_filename = 'downloaded_vectorizer.pkl'
+
+    vectorizer_blob.download_to_filename(vectorizer_filename)
+
+    with open(vectorizer_filename, 'rb') as file:
+        vectorizer = pickle.load(file)
+
+    os.remove(vectorizer_filename)
+
+    return vectorizer
+
 
 def preprocessing_pipeline_sample(text):
     text = preprocess_text(text)
