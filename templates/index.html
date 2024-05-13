@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Scientific Paper Classifier</title>
+</head>
+<body>
+    <h1>Scientific Paper Classifier</h1>
+    <form action="/classify" method="post">
+        <label for="text">Enter text:</label><br>
+        <textarea name="text" rows="5" cols="50">{{ text }}</textarea><br>
+        <input type="submit" value="Classify">
+    </form>
+    {% if baseline_prediction and scibert_prediction %}
+    <h2>Classification Results:</h2>
+    <p>Baseline Model: {{ baseline_prediction }}</p>
+    <p>SciBERT Model: {{ scibert_prediction }}</p>
+    {% endif %}
+</body>
+</html>
