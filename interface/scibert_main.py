@@ -39,10 +39,13 @@ def main():
     print("Concatenated DataFrame saved to GCP")
     print(combined_df.keys())
 
-    # Create X and y
     #Add column names?
+    column_names = ['Title', 'Author', 'Published Date', 'Word Count',
+       'Most Frequent Word', 'Link', 'Label',
+       'Primary Category', 'All Categories', 'Processed Text']
+    combined_df.columns = column_names
 
-
+    # Create X and y
     X = combined_df['Processed Text']
     y = combined_df['Label']
     print("X & y created")
