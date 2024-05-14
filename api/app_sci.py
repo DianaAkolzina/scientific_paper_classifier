@@ -5,13 +5,26 @@ from fastapi import FastAPI, Request, Form
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 import pickle
-from models.preprocess import preprocessing_pipeline_sample
-from models.baseline_model import vectorize_data
 import joblib
 from google.cloud import storage
 from transformers import BertTokenizer, BertModel
 from torch import nn
 import logging
+import spacy
+from langdetect import detect, LangDetectException
+import string
+import re
+from collections import Counter
+from unidecode import unidecode
+import io
+from sklearn.feature_extraction.text import CountVectorizer
+import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.gcp.bigquery_tools import TableReference
+from apache_beam.options.pipeline_options import SetupOptions, WorkerOptions
+from apache_beam.io.gcp.bigquery import ReadFromBigQuery, WriteToBigQuery
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -28,6 +41,46 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+nlp = spacy.load("en_core_web_sm")
+
+def preprocess_text(text):
+    """Processes the given text by cleaning and normalizing it."""
+    if pd.isna(text):
+        return ""
+    text = str(text).lower().strip()  # Convert text to lowercase and strip whitespaces
+    text = unidecode(text)  # Normalize text
+    text = re.sub(r'<.*?>', '', text)  # Remove HTML tags
+    text = re.sub(r'[{}]'.format(re.escape(string.punctuation)), ' ', text)  # Replace punctuation with space
+    text = re.sub(r'\s+', ' ', text)  # Collapse multiple spaces into one
+    text = re.sub(r'\d', ' ', text)  # Remove digits
+    return text
+
+def lemmatize_text(text):
+    """Lemmatizes the given text, removing stopwords, very short words, certain parts of speech, and named entities."""
+    doc = nlp(text)
+    ents = set([ent.text for ent in doc.ents])
+    filtered_tokens = []
+    for token in doc:
+        if not token.is_stop and len(token.lemma_) > 2 and token.lemma_.isalpha() \
+           and token.pos_ not in ['PRON', 'DET'] and token.text not in ents:
+            filtered_tokens.append(token.lemma_)
+    return ' '.join(filtered_tokens)
+
+def extract_middle_text(text, word_count=400):
+    """Extracts `word_count` words from the middle of the text."""
+    words = text.split()
+    total_words = len(words)
+    if total_words <= word_count:
+        return text
+    start_index = (total_words - word_count) // 2
+    return ' '.join(words[start_index:start_index + word_count])
+
+def preprocessing_pipeline_sample(text):
+    text = preprocess_text(text)
+    text = lemmatize_text(text)
+    text = extract_middle_text(text)
+    return text
 
 class SciBERTClassifier(nn.Module):
     def __init__(self, num_labels):
