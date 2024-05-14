@@ -5,8 +5,8 @@ from fastapi import FastAPI, Request, Form
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 import pickle
-from SVM.preprocess import preprocessing_pipeline_sample
-from SVM.baseline_model import vectorize_data
+from models.preprocess import preprocessing_pipeline_sample
+from models.baseline_model import vectorize_data
 import joblib
 from google.cloud import storage
 from transformers import BertTokenizer, BertModel
