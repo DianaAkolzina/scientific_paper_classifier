@@ -45,19 +45,17 @@ app.add_middleware(
 nlp = spacy.load("en_core_web_sm")
 
 def preprocess_text(text):
-    """Processes the given text by cleaning and normalizing it."""
     if pd.isna(text):
         return ""
-    text = str(text).lower().strip()  # Convert text to lowercase and strip whitespaces
-    text = unidecode(text)  # Normalize text
-    text = re.sub(r'<.*?>', '', text)  # Remove HTML tags
-    text = re.sub(r'[{}]'.format(re.escape(string.punctuation)), ' ', text)  # Replace punctuation with space
-    text = re.sub(r'\s+', ' ', text)  # Collapse multiple spaces into one
-    text = re.sub(r'\d', ' ', text)  # Remove digits
+    text = str(text).lower().strip()
+    text = unidecode(text)
+    text = re.sub(r'<.*?>', '', text)
+    text = re.sub(r'[{}]'.format(re.escape(string.punctuation)), ' ', text)
+    text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r'\d', ' ', text)
     return text
 
 def lemmatize_text(text):
-    """Lemmatizes the given text, removing stopwords, very short words, certain parts of speech, and named entities."""
     doc = nlp(text)
     ents = set([ent.text for ent in doc.ents])
     filtered_tokens = []
@@ -68,7 +66,6 @@ def lemmatize_text(text):
     return ' '.join(filtered_tokens)
 
 def extract_middle_text(text, word_count=400):
-    """Extracts `word_count` words from the middle of the text."""
     words = text.split()
     total_words = len(words)
     if total_words <= word_count:
@@ -134,7 +131,6 @@ def load_vectorizer_from_gcs(bucket_name, vectorizer_blob_name):
     return vectorizer
 
 def load_model_from_gcp(bucket_name, blob_name):
-    """Loads the model from a Google Cloud Storage bucket."""
     logger.info("Loading model from GCP bucket: %s", bucket_name)
     storage_client = storage.Client()
     bucket = storage_client.bucket(bucket_name)
@@ -168,7 +164,7 @@ def predict_baseline(new_text):
     new_text_tfidf = tfidf.transform([processed_new_text])
     predicted_label = model.predict(new_text_tfidf)
     print("Predicted Label (Baseline):", predicted_label[0])
-    return predicted_label[0]
+    return predicted_label[0], processed_new_text
 
 def predict_scibert(new_text):
     model = app.state.scibert_model
@@ -193,10 +189,13 @@ def predict_scibert(new_text):
         return predicted_label
 
     processed_new_text = preprocessing_pipeline_sample(new_text)
-    predicted_label = predict_label(processed_new_text, model, tokenizer)
-    class_names = ['1', '0']
-    print("Predicted Label (SciBERT):", class_names[predicted_label])
-    return class_names[predicted_label]
+    words = processed_new_text.split()
+    chunk_size = 400
+    chunks = [' '.join(words[i:i + chunk_size]) for i in range(0, len(words), chunk_size)]
+    predicted_labels = [predict_label(chunk, model, tokenizer) for chunk in chunks]
+    class_names = ['pseudoscientific', 'scientific']
+    print("Predicted Labels (SciBERT):", [class_names[label] for label in predicted_labels])
+    return predicted_labels, processed_new_text
 
 @app.get("/")
 def home(request: Request):
@@ -211,29 +210,44 @@ async def classify(request: Request, text: str = Form(...)):
     assert scibert_model is not None, "SciBERT model not loaded"
 
     logger.info("Predicting with Baseline Model...")
-    baseline_prediction = predict_baseline(text)
+    baseline_prediction, processed_text_baseline = predict_baseline(text)
 
     logger.info("Predicting with SciBERT Model...")
-    scibert_prediction = predict_scibert(text)
+    scibert_predictions, processed_text_scibert = predict_scibert(text)
 
     if baseline_prediction == 0:
         baseline_classifier = "scientific"
     else:
         baseline_classifier = "pseudoscientific"
 
-    if scibert_prediction == '0':
-        scibert_classifier = "scientific"
-    else:
-        scibert_classifier = "pseudoscientific"
+    scibert_classifier_counts = Counter([int(pred) for pred in scibert_predictions])
+    scibert_probability = scibert_classifier_counts[0] / len(scibert_predictions)
 
-    logger.info("Prediction completed. Baseline: %s, SciBERT: %s", baseline_classifier, scibert_classifier)
+    logger.info("Prediction completed. Baseline: %s, SciBERT: %s", baseline_classifier, scibert_predictions)
 
-    return templates.TemplateResponse("index.html", {
-        "request": request,
+    words = processed_text_scibert.split()
+    word_counts = Counter(words)
+    bigrams = list(zip(words[:-1], words[1:]))
+    bigram_counts = Counter(bigrams)
+
+    frequent_words = [word for word, count in word_counts.most_common(3) if count > 2]
+    frequent_bigrams = [' '.join(bigram) for bigram, count in bigram_counts.most_common(3) if count > 2]
+
+    num_words = len(words)
+    num_unique_words = len(set(words))
+    num_sentences = processed_text_scibert.count('.') + 1
+
+    return {
         "baseline_prediction": baseline_classifier,
-        "scibert_prediction": scibert_classifier,
-        "text": text
-    })
+        "scibert_predictions": [str(pred) for pred in scibert_predictions],
+        "scibert_probability": scibert_probability,
+        "text": text,
+        "frequent_words": frequent_words,
+        "frequent_bigrams": frequent_bigrams,
+        "num_words": num_words,
+        "num_unique_words": num_unique_words,
+        "num_sentences": num_sentences
+    }
 
 if __name__ == "__main__":
     import uvicorn
