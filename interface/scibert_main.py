@@ -18,7 +18,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 client = bigquery.Client()
 query = """
 SELECT Processed_Text,  Label
-FROM data_train.processed_text_10000
+FROM data_train.concatenated_df_16000
 """
 df = client.query(query).to_dataframe()
 
@@ -90,7 +90,10 @@ def tokenize_data(texts, labels):
 
     input_ids = torch.cat(input_ids, dim=0)
     attention_masks = torch.cat(attention_masks, dim=0)
-    labels = torch.tensor(labels.tolist())
+
+    # Convert labels to integers
+    labels = labels.astype(int)
+    labels = torch.tensor(labels.values)
 
     return TensorDataset(input_ids, attention_masks, labels)
 
@@ -113,7 +116,7 @@ for epoch in range(epochs):
         input_ids, attention_mask, labels = batch
 
         optimizer.zero_grad()
-        outputs = model(input_ids, attention_mask)
+        outputs, _ = model(input_ids, attention_mask)
         loss = nn.CrossEntropyLoss()(outputs, labels)
         total_loss += loss.item()
         loss.backward()
@@ -130,7 +133,7 @@ for batch in tqdm(test_dataloader, desc='Evaluating'):
     input_ids, attention_mask, labels = batch
 
     with torch.no_grad():
-        outputs = model(input_ids, attention_mask)
+        outputs, _ = model(input_ids, attention_mask)
 
     logits = outputs.detach().cpu().numpy()
     label_ids = labels.cpu().numpy()
@@ -186,7 +189,7 @@ for epoch in range(epochs):
         input_ids, attention_mask, labels = batch
 
         optimizer.zero_grad()
-        outputs = model(input_ids, attention_mask)
+        outputs, _ = model(input_ids, attention_mask)
         loss = nn.CrossEntropyLoss()(outputs, labels)
         train_loss += loss.item()
         loss.backward()
@@ -211,7 +214,7 @@ for epoch in range(epochs):
         input_ids, attention_mask, labels = batch
 
         with torch.no_grad():
-            outputs = model(input_ids, attention_mask)
+            outputs, _ = model(input_ids, attention_mask)
 
         loss = nn.CrossEntropyLoss()(outputs, labels)
         val_loss += loss.item()
@@ -263,7 +266,6 @@ loaded_model.load_state_dict(torch.load(model_path))
 loaded_model.to(device)
 logging.info("Model loaded successfully")
 
-# Test on sample text
 sample_text = "This is a sample text to test the model."
 
 def predict_label(text, model, tokenizer):
@@ -285,7 +287,7 @@ def predict_label(text, model, tokenizer):
     predicted_label = torch.argmax(outputs).item()
     return predicted_label, attention_weights
 
-predicted_label = predict_label(sample_text, loaded_model, tokenizer)
+predicted_label, attention_weights = predict_label(sample_text, loaded_model, tokenizer)
 logging.info(f"Predicted label for the sample text: {class_names[predicted_label]}")
 
 def visualize_attention(text, attention_weights, tokenizer):
@@ -312,8 +314,5 @@ def visualize_attention(text, attention_weights, tokenizer):
     ax.set_title("Attention Visualization")
     fig.tight_layout()
     plt.show()
-
-predicted_label, attention_weights = predict_label(sample_text, loaded_model, tokenizer)
-logging.info(f"Predicted label for the sample text: {class_names[predicted_label]}")
 
 visualize_attention(sample_text, attention_weights[-1], tokenizer)
