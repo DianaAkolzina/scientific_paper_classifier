@@ -151,7 +151,7 @@ def load_model_from_gcp(bucket_name, blob_name):
 BUCKET_NAME = os.getenv("BUCKET_NAME")
 logger.info("Loading models from GCP bucket: %s", BUCKET_NAME)
 app.state.baseline_model = load_model_from_gcp(BUCKET_NAME, 'models/baseline_model.joblib')
-app.state.scibert_model = load_model_from_gcp(BUCKET_NAME, 'models/scibert_model.pth')
+app.state.scibert_model = load_model_from_gcp(BUCKET_NAME, 'models/scibert_model_final.pth')
 
 def predict_baseline(new_text):
     model = app.state.baseline_model
