@@ -18,13 +18,8 @@ from collections import Counter
 from unidecode import unidecode
 import io
 from sklearn.feature_extraction.text import CountVectorizer
-import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.io.gcp.internal.clients import bigquery
-from apache_beam.io.gcp.bigquery_tools import TableReference
-from apache_beam.options.pipeline_options import SetupOptions, WorkerOptions
-from apache_beam.io.gcp.bigquery import ReadFromBigQuery, WriteToBigQuery
-
+import matplotlib.pyplot as plt
+import numpy as np
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -89,13 +84,14 @@ class SciBERTClassifier(nn.Module):
         self.linear2 = nn.Linear(256, num_labels)
 
     def forward(self, input_ids, attention_mask):
-        outputs = self.bert(input_ids, attention_mask=attention_mask)
+        outputs = self.bert(input_ids, attention_mask=attention_mask, output_attentions=True)
         pooled_output = outputs[1]
+        attention_weights = outputs[2]  # Accessing the attention weights from the tuple
         pooled_output = self.dropout(pooled_output)
         linear1_output = self.linear1(pooled_output)
         relu_output = self.relu(linear1_output)
         final_output = self.linear2(relu_output)
-        return final_output
+        return final_output, attention_weights
 
 def save_vectorizer_to_gcs(vectorizer, bucket_name, vectorizer_blob_name):
     vectorizer_filename = 'vectorizer.pkl'
@@ -184,18 +180,54 @@ def predict_scibert(new_text):
         input_ids = encoded_dict['input_ids']
         attention_mask = encoded_dict['attention_mask']
         with torch.no_grad():
-            outputs = model(input_ids, attention_mask)
-        predicted_label = torch.argmax(outputs).item()
-        return predicted_label
+            outputs, attention_weights = model(input_ids, attention_mask)
+        predicted_label = torch.argmax(outputs[0]).item()
+        return predicted_label, attention_weights
 
     processed_new_text = preprocessing_pipeline_sample(new_text)
     words = processed_new_text.split()
     chunk_size = 400
     chunks = [' '.join(words[i:i + chunk_size]) for i in range(0, len(words), chunk_size)]
-    predicted_labels = [predict_label(chunk, model, tokenizer) for chunk in chunks]
+    predicted_labels = []
+    attention_weights_list = []
+    for chunk in chunks:
+        label, attention_weights = predict_label(chunk, model, tokenizer)
+        predicted_labels.append(label)
+        attention_weights_list.append(attention_weights)
     class_names = ['pseudoscientific', 'scientific']
     print("Predicted Labels (SciBERT):", [class_names[label] for label in predicted_labels])
-    return predicted_labels, processed_new_text
+    return predicted_labels, processed_new_text, attention_weights_list, chunks, tokenizer
+
+def visualize_attention(text, attention_weights, tokenizer, top_n=5):
+    encoded_dict = tokenizer.encode_plus(
+        text,
+        add_special_tokens=True,
+        max_length=256,
+        padding='max_length',
+        truncation=True,
+        return_attention_mask=True,
+        return_tensors='pt'
+    )
+    input_ids = encoded_dict['input_ids'].squeeze().tolist()
+    tokens = tokenizer.convert_ids_to_tokens(input_ids)
+
+    attention_weights = attention_weights[-1].squeeze().mean(dim=0).cpu().numpy()
+
+    # Get the indices of the top N attention weights
+    top_indices = np.argsort(attention_weights)[-top_n:].tolist()  # Convert to list
+
+    top_tokens = [tokens[i] for i in top_indices]
+    top_attention_weights = [attention_weights[i] for i in top_indices]
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+    im = ax.imshow(np.array(top_attention_weights).reshape(1, -1), cmap='Blues', aspect='auto')
+    ax.set_xticks(range(len(top_tokens)))
+    ax.set_xticklabels(top_tokens, rotation=90)
+    ax.set_yticks([])
+    ax.set_title("Top Attention Weights Visualization")
+    fig.colorbar(im, ax=ax, orientation='vertical')
+    fig.tight_layout()
+    plt.show()
 
 @app.get("/")
 def home(request: Request):
@@ -213,7 +245,7 @@ async def classify(request: Request, text: str = Form(...)):
     baseline_prediction, processed_text_baseline = predict_baseline(text)
 
     logger.info("Predicting with SciBERT Model...")
-    scibert_predictions, processed_text_scibert = predict_scibert(text)
+    scibert_predictions, processed_text_scibert, attention_weights_list, chunks, tokenizer = predict_scibert(text)
 
     if baseline_prediction == 0:
         baseline_classifier = "scientific"
@@ -237,6 +269,16 @@ async def classify(request: Request, text: str = Form(...)):
     num_unique_words = len(set(words))
     num_sentences = processed_text_scibert.count('.') + 1
 
+    attention_weights = None
+    tokens = None
+    if attention_weights_list and chunks:
+        try:
+            attention_weights = attention_weights_list[0][-1].squeeze().mean(dim=0).cpu().numpy().tolist()
+            tokens = tokenizer.convert_ids_to_tokens(tokenizer.encode(chunks[0], add_special_tokens=True))
+            visualize_attention(chunks[0], attention_weights_list[0], tokenizer)
+        except (IndexError, TypeError) as e:
+            logger.error("Error occurred while processing attention weights: %s", str(e))
+
     return {
         "baseline_prediction": baseline_classifier,
         "scibert_predictions": [str(pred) for pred in scibert_predictions],
@@ -246,7 +288,9 @@ async def classify(request: Request, text: str = Form(...)):
         "frequent_bigrams": frequent_bigrams,
         "num_words": num_words,
         "num_unique_words": num_unique_words,
-        "num_sentences": num_sentences
+        "num_sentences": num_sentences,
+        "attention_weights": attention_weights,
+        "tokens": tokens
     }
 
 if __name__ == "__main__":
