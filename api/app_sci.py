@@ -4,9 +4,7 @@ import torch
 from fastapi import FastAPI, Request, Form
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
-import pickle
 import joblib
-from google.cloud import storage
 from transformers import BertTokenizer, BertModel
 from torch import nn
 import logging
@@ -16,10 +14,9 @@ import string
 import re
 from collections import Counter
 from unidecode import unidecode
-import io
-from sklearn.feature_extraction.text import CountVectorizer
 import matplotlib.pyplot as plt
 import numpy as np
+from fastapi.staticfiles import StaticFiles
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,7 +24,10 @@ templates = Jinja2Templates(directory="templates")
 
 app = FastAPI()
 
-app.state = type('', (), {})()
+app.mount("/visualizations", StaticFiles(directory="visualizations"), name="visualizations")
+
+# Add state attribute to the app
+app.state = type('State', (), {})()
 
 app.add_middleware(
     CORSMiddleware,
@@ -79,88 +79,19 @@ class SciBERTClassifier(nn.Module):
         super(SciBERTClassifier, self).__init__()
         self.bert = BertModel.from_pretrained('allenai/scibert_scivocab_uncased')
         self.dropout = nn.Dropout(0.1)
-        self.linear1 = nn.Linear(768, 256)
-        self.relu = nn.ReLU()
+        self.lstm = nn.LSTM(768, 256, num_layers=2, bidirectional=True, batch_first=True)
+        self.linear1 = nn.Linear(512, 256)
         self.linear2 = nn.Linear(256, num_labels)
 
     def forward(self, input_ids, attention_mask):
         outputs = self.bert(input_ids, attention_mask=attention_mask, output_attentions=True)
         pooled_output = outputs[1]
-        attention_weights = outputs[2]  # Accessing the attention weights from the tuple
+        attention_weights = outputs[2]
         pooled_output = self.dropout(pooled_output)
-        linear1_output = self.linear1(pooled_output)
-        relu_output = self.relu(linear1_output)
-        final_output = self.linear2(relu_output)
-        return final_output, attention_weights
-
-def save_vectorizer_to_gcs(vectorizer, bucket_name, vectorizer_blob_name):
-    vectorizer_filename = 'vectorizer.pkl'
-
-    with open(vectorizer_filename, 'wb') as file:
-        pickle.dump(vectorizer, file)
-
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(bucket_name)
-
-    vectorizer_blob = bucket.blob(vectorizer_blob_name)
-    vectorizer_blob.upload_from_filename(vectorizer_filename)
-
-    os.remove(vectorizer_filename)
-
-    print(f"Vectorizer saved to GCS bucket {bucket_name} under {vectorizer_blob_name}")
-
-def load_vectorizer_from_gcs(bucket_name, vectorizer_blob_name):
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(bucket_name)
-
-    vectorizer_blob = bucket.blob(vectorizer_blob_name)
-
-    vectorizer_filename = 'downloaded_vectorizer.pkl'
-
-    vectorizer_blob.download_to_filename(vectorizer_filename)
-
-    with open(vectorizer_filename, 'rb') as file:
-        vectorizer = pickle.load(file)
-
-    os.remove(vectorizer_filename)
-
-    return vectorizer
-
-def load_model_from_gcp(bucket_name, blob_name):
-    logger.info("Loading model from GCP bucket: %s", bucket_name)
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(bucket_name)
-    blob = bucket.blob(blob_name)
-    model_filename = 'downloaded_model'
-    blob.download_to_filename(model_filename)
-
-    if blob_name.endswith('.joblib'):
-        model = joblib.load(model_filename)
-    elif blob_name.endswith('.pth'):
-        model_class = SciBERTClassifier
-        num_labels = 2
-        model = model_class(num_labels)
-        model.load_state_dict(torch.load(model_filename))
-    else:
-        raise ValueError("Unsupported model file format")
-
-    os.remove(model_filename)
-    logger.info("Model loaded successfully")
-    return model
-
-BUCKET_NAME = os.getenv("BUCKET_NAME")
-logger.info("Loading models from GCP bucket: %s", BUCKET_NAME)
-app.state.baseline_model = load_model_from_gcp(BUCKET_NAME, 'models/baseline_model.joblib')
-app.state.scibert_model = load_model_from_gcp(BUCKET_NAME, 'models/scibert_model_final.pth')
-
-def predict_baseline(new_text):
-    model = app.state.baseline_model
-    tfidf = load_vectorizer_from_gcs(BUCKET_NAME, 'models/x_tfidf.pkl')
-    processed_new_text = preprocessing_pipeline_sample(new_text)
-    new_text_tfidf = tfidf.transform([processed_new_text])
-    predicted_label = model.predict(new_text_tfidf)
-    print("Predicted Label (Baseline):", predicted_label[0])
-    return predicted_label[0], processed_new_text
+        lstm_output, _ = self.lstm(pooled_output.unsqueeze(0))
+        linear1_output = self.linear1(lstm_output.squeeze(0))
+        logits = self.linear2(linear1_output)
+        return logits, attention_weights
 
 def predict_scibert(new_text):
     model = app.state.scibert_model
@@ -195,8 +126,52 @@ def predict_scibert(new_text):
         predicted_labels.append(label)
         attention_weights_list.append(attention_weights)
     class_names = ['pseudoscientific', 'scientific']
-    print("Predicted Labels (SciBERT):", [class_names[label] for label in predicted_labels])
+    logger.info("Predicted Labels (SciBERT): %s", [class_names[label] for label in predicted_labels])
     return predicted_labels, processed_new_text, attention_weights_list, chunks, tokenizer
+
+def load_model_from_local(model_path):
+    logger.info("Loading model from local path: %s", model_path)
+    if model_path.endswith('.joblib') or model_path.endswith('.pkl'):
+        model = joblib.load(model_path)
+    elif model_path.endswith('.pth'):
+        model_class = SciBERTClassifier
+        num_labels = 2
+        model = model_class(num_labels)
+        if torch.cuda.is_available():
+            model.load_state_dict(torch.load(model_path), strict=False)
+        else:
+            model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')), strict=False)
+    else:
+        raise ValueError("Unsupported model file format")
+    logger.info("Model loaded successfully")
+    return model
+
+def load_vectorizer_from_local(vectorizer_path):
+    logger.info("Loading vectorizer from local path: %s", vectorizer_path)
+    vectorizer = joblib.load(vectorizer_path)
+    logger.info("Vectorizer loaded successfully")
+    return vectorizer
+
+# Get the absolute path of the parent directory of the current script
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Construct the file paths relative to the parent directory
+baseline_model_path = os.path.join(parent_dir, 'models', 'svm_model.pkl')
+scibert_model_path = os.path.join(parent_dir, 'models', 'scibert_model.pth')
+tfidf_vectorizer_path = os.path.join(parent_dir, 'models', 'tfidf_vectorizer.pkl')
+
+logger.info("Loading models from local storage")
+app.state.baseline_model = load_model_from_local(baseline_model_path)
+app.state.scibert_model = load_model_from_local(scibert_model_path)
+
+def predict_baseline(new_text):
+    model = app.state.baseline_model
+    tfidf = load_vectorizer_from_local(tfidf_vectorizer_path)
+    processed_new_text = preprocessing_pipeline_sample(new_text)
+    new_text_tfidf = tfidf.transform([processed_new_text])
+    predicted_label = model.predict(new_text_tfidf)
+    logger.info("Predicted Label (Baseline): %s", predicted_label[0])
+    return predicted_label[0], processed_new_text
 
 def visualize_attention(text, attention_weights, tokenizer, top_n=5):
     encoded_dict = tokenizer.encode_plus(
@@ -213,14 +188,15 @@ def visualize_attention(text, attention_weights, tokenizer, top_n=5):
 
     attention_weights = attention_weights[-1].squeeze().mean(dim=0).cpu().numpy()
 
-    # Get the indices of the top N attention weights
-    top_indices = np.argsort(attention_weights)[-top_n:].tolist()  # Convert to list
-
+    top_indices = np.argsort(attention_weights)[-top_n:].tolist()
     top_tokens = [tokens[i] for i in top_indices]
     top_attention_weights = [attention_weights[i] for i in top_indices]
 
-    fig, ax = plt.subplots(figsize=(10, 8))
+    fig, ax = plt.subplots(figsize=(10, 2))
     im = ax.imshow(np.array(top_attention_weights).reshape(1, -1), cmap='Blues', aspect='auto')
+
+    im.set_clim(0, max(top_attention_weights))
+
     ax.set_xticks(range(len(top_tokens)))
     ax.set_xticklabels(top_tokens, rotation=90)
     ax.set_yticks([])
@@ -228,6 +204,22 @@ def visualize_attention(text, attention_weights, tokenizer, top_n=5):
     fig.colorbar(im, ax=ax, orientation='vertical')
     fig.tight_layout()
     plt.show()
+
+@app.get("/model-overview")
+def model_overview(request: Request):
+    return templates.TemplateResponse("model_overview.html", {"request": request})
+
+@app.get("/data-overview")
+def data_overview(request: Request):
+    return templates.TemplateResponse("data_overview.html", {"request": request})
+
+@app.get("/scibert-overview")
+def scibert_overview(request: Request):
+    return templates.TemplateResponse("scibert_overview.html", {"request": request})
+
+@app.get("/sources-credentials")
+def sources_credentials(request: Request):
+    return templates.TemplateResponse("sources_credentials.html", {"request": request})
 
 @app.get("/")
 def home(request: Request):
