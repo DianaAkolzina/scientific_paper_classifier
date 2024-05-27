@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
         body {
-            font-family: 'Arial Black', Gadget, sans-serif;
+            font-family: 'Arial', sans-serif;
             background-color: #000;
             color: #fff;
             margin: 0;
@@ -218,27 +218,6 @@
             transform: translateX(20px);
         }
 
-        .attention-weights-section {
-            margin-top: 30px;
-            padding: 20px;
-            background-color: #444;
-            border-radius: 5px;
-            text-align: left;
-            animation: fadeInDown 1s ease;
-        }
-
-        .attention-weights-section h3 {
-            margin-bottom: 10px;
-        }
-
-        .attention-weights-section ul {
-            padding-left: 20px;
-        }
-
-        .attention-weights-section li {
-            margin-bottom: 5px;
-        }
-
         .attention-weights-visualization {
             margin-top: 30px;
             padding: 20px;
@@ -247,181 +226,318 @@
             text-align: left;
             animation: fadeInDown 1s ease;
         }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 200px;
+            background-color: #222;
+            padding: 20px;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 999;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-header {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .sidebar-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .sidebar-menu {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar-menu li {
+            margin-bottom: 10px;
+        }
+
+        .sidebar-menu a {
+            display: block;
+            padding: 10px;
+            color: #fff;
+            text-decoration: none;
+            transition: background-color 0.3s ease;
+        }
+
+        .sidebar-menu a:hover {
+            background-color: #555;
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            left: 20px;
+            top: 20px;
+            font-size: 24px;
+            color: #fff;
+            cursor: pointer;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-toggle:hover {
+            transform: scale(1.2);
+        }
+
+        .content {
+            margin-left: 200px;
+            padding: 20px;
+            transition: margin-left 0.3s ease;
+        }
+
+        .content.expanded {
+            margin-left: 0;
+        }
+
+        .prepared-texts {
+            margin-bottom: 30px;
+            animation: fadeInUp 1s ease;
+        }
+
+        .prepared-texts h3 {
+            cursor: pointer;
+        }
+
+        .prepared-texts-content {
+            display: none;
+            margin-top: 10px;
+        }
+
+        .prepared-texts-content button {
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body class="dark-mode">
-<div class="container">
-    <div class="toggle-container">
-        <span class="toggle-label">Dark Mode:</span>
-        <label class="toggle-switch" for="mode-toggle">
-            <input type="checkbox" id="mode-toggle">
-            <span class="toggle-switch-inner"></span>
-        </label>
-    </div>
-    <div class="title">Scientific Paper Classifier</div>
-    <form id="classification-form">
-        <div class="input-container">
-            <label for="text">Enter text:</label>
-            <textarea name="text" id="text" rows="6"
-                      placeholder="Paste your scientific text here..."></textarea>
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h3 class="sidebar-title">Menu</h3>
         </div>
-        <button type="button" class="submit-btn" id="classify-btn">Classify</button>
-        <button type="button" class="clear-btn" id="clear-btn">Clear Text</button>
-    </form>
-
-    <div class="result-section" id="result-section" style="display:none;">
-        <h3>Classification Results:</h3>
-        <ul>
-            <li>Baseline Model: <strong id="baseline-result"></strong></li>
-            <li>SciBERT Model (Chunked Predictions): <strong id="scibert-result"></strong></li>
-            <li>Probability of being Scientific (SciBERT): <strong id="scibert-probability"></strong></li>
+        <ul class="sidebar-menu">
+            <li><a href="/">Home</a></li>
+            <li><a href="/model-overview">Model Overview</a></li>
+            <li><a href="/data-overview">Data Overview</a></li>
+            <li><a href="/scibert-overview">SciBERT Overview</a></li>
+            <li><a href="/sources-credentials">Sources/Credentials</a></li>
         </ul>
     </div>
-    <div class="result-section" id="text-stats" style="display:none;">
-        <h3>Text Statistics:</h3>
-        <ul>
-            <li>Number of Words: <strong id="num-words"></strong></li>
-            <li>Number of Unique Words: <strong id="num-unique-words"></strong></li>
-            <li>Number of Sentences: <strong id="num-sentences"></strong></li>
-        </ul>
-    </div>
-    <div class="result-section" id="frequent-words-section" style="display:none;">
-        <h3>Frequent Words (appearing more than twice):</h3>
-        <ul id="frequent-words-list"></ul>
-    </div>
-    <div class="result-section" id="frequent-bigrams-section" style="display:none;">
-        <h3>Frequent Bigrams (appearing more than twice):</h3>
-        <ul id="frequent-bigrams-list"></ul>
-    </div>
-    <div class="attention-weights-visualization" id="attention-weights-visualization" style="display:none;">
-        <h3>Attention Weights Visualization:</h3>
-        <canvas id="attention-weights-chart"></canvas>
+
+    <div class="sidebar-toggle" id="sidebar-toggle">
+        <i class="fas fa-bars"></i>
     </div>
 
-    <div class="loader" id="loader">
-        <i class="fas fa-spinner"></i>
+    <div class="container">
+        <div class="toggle-container">
+            <span class="toggle-label">Dark Mode:</span>
+            <label class="toggle-switch" for="mode-toggle">
+                <input type="checkbox" id="mode-toggle">
+                <span class="toggle-switch-inner"></span>
+            </label>
+        </div>
+        <div class="title">Scientific Paper Classifier</div>
+        <form id="classification-form">
+            <div class="input-container">
+                <label for="text">Enter text:</label>
+                <textarea name="text" id="text" rows="6" placeholder="Paste your scientific text here..."></textarea>
+            </div>
+            <div class="prepared-texts">
+                <h3 id="prepared-texts-toggle">Choose Prepared Texts ▼</h3>
+                <div class="prepared-texts-content" id="prepared-texts-content">
+                  <button type="button" class="btn btn-secondary" onclick="insertPreparedText('The use of CRISPR technology to edit the genome of tardigrades has opened new avenues in studying extremophile resilience. By targeting specific genes, researchers have been able to enhance the natural robustness of these organisms, potentially leading to breakthroughs in biotechnology and astrobiology. Detailed studies have shown that edited tardigrades exhibit increased resistance to radiation, extreme temperatures, and high-pressure environments. These enhancements could pave the way for new biotechnological applications, including the development of resilient crops and microorganisms for use in harsh environments on Earth and potentially on other planets. Furthermore, understanding the genetic mechanisms behind tardigrades\' resilience may provide insights into improving human health, such as developing new treatments for radiation sickness or enhancing human cells\' ability to repair DNA. The potential applications of this research are vast, and ongoing studies continue to explore the limits of genetic editing in extremophiles. Recent experiments have focused on combining multiple gene edits to create super-resilient tardigrades that can withstand even more extreme conditions. Scientists are also investigating the possibility of transferring these resilience-enhancing genes to other organisms, such as plants and mammals, to create more robust and adaptable species. However, ethical concerns surrounding genetic modification and the potential ecological impacts of releasing edited organisms into the environment must be carefully considered. As research progresses, it is crucial to engage in interdisciplinary discussions to ensure responsible development and application of this technology. The study of tardigrade genome editing not only expands our understanding of the fundamental mechanisms of life but also holds promise for addressing pressing global challenges, such as food security and space exploration. By harnessing the power of these tiny, yet incredibly resilient creatures, we may unlock new solutions to some of the most significant problems facing humanity today.')">Prepared Text 1 (Science)</button>
+                  <button type="button" class="btn btn-secondary" onclick="insertPreparedText('Quantum entanglement in photosynthetic complexes has been observed to enhance the efficiency of energy transfer. This phenomenon suggests that certain biological systems may exploit quantum mechanical effects, paving the way for novel advancements in quantum biology. Recent experiments have demonstrated that entangled states can facilitate the rapid transfer of energy through photosynthetic complexes, reducing the likelihood of energy loss. This discovery challenges traditional views of biological processes, indicating that life might utilize quantum coherence to achieve high efficiency in energy conversion. Understanding these quantum effects could lead to revolutionary technologies, such as highly efficient solar cells that mimic natural photosynthesis. Additionally, this research opens up new questions about the role of quantum mechanics in other biological processes, potentially leading to a deeper understanding of the fundamental principles that govern life. Scientists are now exploring the possibility that quantum entanglement may play a role in various biological functions, such as enzyme catalysis, DNA replication, and even neural processes in the brain. Some theories suggest that the brain\'s ability to process vast amounts of information and generate conscious experiences may be linked to quantum effects. However, the extent to which quantum mechanics influences biological systems remains a topic of ongoing research and debate. To further investigate these phenomena, researchers are developing advanced spectroscopic techniques and theoretical models that can capture the complex dynamics of quantum entanglement in living systems. Collaborations between physicists, biologists, and computer scientists are crucial in unraveling the mysteries of quantum biology and developing practical applications based on these principles. As our understanding of the quantum world expands, it is becoming increasingly evident that the boundaries between physics and biology are blurring, leading to a more holistic view of the natural world. The study of quantum entanglement in photosynthesis is just one example of how this interdisciplinary approach can yield groundbreaking discoveries and inspire new technologies that harness the power of nature.')">Prepared Text 2 (Science)</button>
+                  <button type="button" class="btn btn-secondary" onclick="insertPreparedText('The moon is made of green cheese, a theory that has recently gained substantial evidence from the discovery of micro-cheese particles in lunar soil samples brought back by space missions. Proponents argue that the unique chemical composition of these particles strongly suggests an extraterrestrial dairy origin, possibly from ancient alien civilizations that cultivated lunar farms to produce cheese on the moon\'s surface. Despite the scientific community\'s skepticism, numerous speculative studies have attempted to explain how cheese production could occur in the moon\'s harsh environment, with some theories proposing that the moon\'s craters were used as natural cheese fermentation chambers. The green cheese theory has captured the imagination of pseudoscientists and the public, who eagerly await further evidence to support this extraordinary claim. Advocates of the theory have even suggested that the moon\'s gravitational influence on Earth\'s tides is a result of the cheese\'s magnetic properties, which they claim can affect the movement of water on our planet. Some have gone as far as to propose that the moon\'s phases are caused by the waxing and waning of the cheese\'s bacterial growth cycles. These outlandish ideas have been met with derision from the scientific community, who point out the complete lack of credible evidence and the violation of basic physical and biological principles. Nevertheless, the green cheese theory continues to gain popularity among those who are drawn to the idea of a secret extraterrestrial civilization leaving behind traces of their dairy-based technology. As more missions to the moon are planned, both by government agencies and private companies, it is likely that the green cheese theory will continue to evolve and adapt to new findings, no matter how implausible they may be. The persistence of this theory serves as a reminder of the human tendency to seek out extraordinary explanations for the unknown, even in the face of overwhelming scientific evidence to the contrary.')">Prepared Text 3 (Pseudoscience)</button>
+                  <button type="button" class="btn btn-secondary" onclick="insertPreparedText('Homeopathic quantum water, which retains the memory of substances it has been in contact with even when diluted beyond the point of any physical presence, has been claimed to influence biological systems in ways that defy conventional scientific understanding. Advocates argue that quantum water can heal a wide range of ailments, from chronic pain to mental health disorders, by realigning the body\'s energy fields through the altered water structure at a quantum level, allowing it to store and transmit healing properties. Despite numerous studies debunking homeopathy and the lack of empirical evidence supporting quantum water, proponents continue to promote it as a miraculous cure-all, driven by anecdotal testimonials and the allure of a seemingly magical solution to health problems. Critics highlight the lack of scientific plausibility and the consistent failure of quantum water to outperform placebos in controlled trials, pointing out that the concept violates fundamental principles of physics and chemistry. Some quantum water enthusiasts have even claimed that the memory effect can be transmitted through electronic devices, allowing people to receive the benefits of homeopathic treatments by listening to audio recordings or viewing images of the quantum water. These claims have been widely discredited by the scientific community, who emphasize that such ideas are not supported by any credible evidence and exploit the public\'s lack of understanding of quantum mechanics. Despite the overwhelming scientific consensus against homeopathic quantum water, the idea remains popular among certain alternative medicine circles, often promoted by individuals and companies seeking to profit from the sale of related products and services. The persistence of this pseudoscientific concept highlights the importance of promoting scientific literacy and critical thinking skills to help individuals make informed decisions about their health and well-being. As long as there is a market for miracle cures and easy solutions to complex problems, ideas like homeopathic quantum water will continue to thrive, regardless of their scientific merit.')">Prepared Text 4 (Pseudoscience)</button>
+                  <button type="button" class="btn btn-secondary" onclick="insertPreparedText('Atlantis, the mythical underwater city, has allegedly been found in the Bermuda Triangle, according to recent claims backed by sonar images that appear to reveal the outlines of massive structures believed to be remnants of this advanced ancient civilization. Proponents suggest that these findings confirm long-held theories about the existence of Atlantis and its advanced technology, including the ability to harness crystal energies for various purposes and possible contact with extraterrestrial beings who shared their knowledge. Despite the lack of concrete evidence and the dismissal of these claims by mainstream archaeologists, the Atlantis in the Bermuda Triangle theory continues to thrive, with enthusiasts arguing that a grand conspiracy is preventing the truth from being revealed. Some have even claimed that the Atlanteans possessed a powerful crystal-based weapon that could control the weather and cause catastrophic events, such as hurricanes and tsunamis, which they believe explains the mysterious disappearances of ships and aircraft in the Bermuda Triangle region. Others have suggested that the Atlanteans had discovered a way to harness zero-point energy, a hypothetical form of limitless power that could be used to sustain their advanced civilization and power their flying vehicles. These claims have been met with extreme skepticism from the scientific community, who point out that there is no credible evidence to support the existence of such technologies in ancient times, and that the idea of a massive underwater city going undetected for thousands of years is highly implausible. Furthermore, the Bermuda Triangle has been thoroughly investigated by scientists and found to have no unusual or unexplained phenomena occurring within its boundaries. Despite the lack of scientific support, the legend of Atlantis in the Bermuda Triangle persists, fueled by popular media, conspiracy theories, and the human fascination with lost civilizations and hidden knowledge. As long as there are those who are willing to believe in extraordinary claims without demanding extraordinary evidence, the myth of Atlantis will continue to captivate the imagination, regardless of its basis in reality.')">Prepared Text 5 (Pseudoscience)</button>
+                  <button type="button" class="btn btn-secondary" onclick="insertPreparedText('The field of neuroscience has made significant advancements in understanding the complex mechanisms underlying brain function and behavior. One area of particular interest is the study of neural plasticity, which refers to the brain\'s ability to adapt and reorganize in response to new experiences and learning. Recent research has shed light on the molecular and cellular processes that drive neural plasticity, including the role of synaptic strengthening and weakening, as well as the formation of new neural connections. These findings have important implications for understanding how the brain learns and remembers, and how it can recover from injury or disease. For example, studies have shown that targeted cognitive training can induce plasticity in specific brain regions, leading to improved performance on tasks related to attention, memory, and decision-making. Additionally, researchers are exploring how neural plasticity can be harnessed to develop new therapies for neurological and psychiatric disorders, such as Alzheimer\'s disease, Parkinson\'s disease, and depression. By promoting the growth of new neural connections and strengthening existing ones, it may be possible to alleviate symptoms and improve cognitive function in individuals with these conditions. Another exciting area of research in neuroscience is the development of brain-computer interfaces (BCIs), which allow direct communication between the brain and external devices. BCIs have the potential to restore function in individuals with paralysis or sensory impairments, by translating neural activity into control signals for prosthetic limbs or assistive technologies. Recent advances in BCI technology have enabled more precise and reliable control, as well as the ability to provide sensory feedback to the user. As research in neuroscience continues to progress, it is likely that we will see even more groundbreaking discoveries and applications in the years to come. By deepening our understanding of the brain and its remarkable capacity for adaptation and change, we can unlock new possibilities for enhancing human cognition, treating neurological disorders, and expanding the boundaries of human-machine interaction.')">Prepared Text 6 (Science)</button>
+                  <button type="button" class="btn btn-secondary" onclick="insertPreparedText('The Earth is actually flat, and the concept of a spherical planet is an elaborate hoax perpetrated by governments and scientists worldwide. Proponents of the flat Earth theory argue that all evidence suggesting a globe-shaped Earth is fabricated, and that the true nature of our world has been hidden from the public for centuries. They claim that the Earth is a flat disc, with the North Pole at the center and a massive ice wall surrounding the edges, which they believe is guarded by government agencies to prevent people from discovering the truth. Flat Earth advocates often point to their own observations and interpretations of phenomena such as the horizon, shadows, and the movement of celestial bodies as proof of their beliefs. Some even go as far as to suggest that gravity is a fictional force, and that objects simply fall because the flat Earth is constantly accelerating upwards. These claims have been thoroughly debunked by the scientific community, who have provided overwhelming evidence for the Earth\'s spherical shape, including satellite imagery, circumnavigation, and the observation of lunar eclipses. However, flat Earth proponents often dismiss this evidence as part of the global conspiracy, and instead rely on their own experiments and interpretations, which are typically flawed and lack scientific rigor. The flat Earth movement has gained traction in recent years, largely due to the proliferation of social media and online platforms that allow individuals to spread misinformation and connect with like-minded believers. Many experts have expressed concern about the growing popularity of the flat Earth theory, as it represents a rejection of basic scientific principles and critical thinking skills. The spread of this and other pseudoscientific ideas can have serious consequences, as it erodes public trust in science and can lead to poor decision-making on important issues such as public health and environmental policy. Ultimately, the persistence of the flat Earth theory serves as a reminder of the importance of promoting scientific literacy and encouraging individuals to think critically about the information they encounter, particularly in an age where misinformation can spread rapidly and easily.')">Prepared Text 7 (Pseudoscience)</button>
+                  <button type="button" class="btn btn-secondary" onclick="insertPreparedText('Recent advancements in renewable energy technologies have the potential to revolutionize the way we generate and consume power, offering cleaner and more sustainable alternatives to fossil fuels. One of the most promising developments in this field is the improvement of solar cell efficiency, which has seen significant gains in recent years. Researchers have developed new materials and designs that can capture a greater portion of the solar spectrum, including perovskite-based cells and multi-junction cells that combine multiple layers of light-absorbing materials. These innovations have pushed solar cell efficiencies closer to their theoretical limits, making solar power more cost-competitive with traditional energy sources. In addition to solar energy, wind power has also seen significant advancements, with the development of larger and more efficient wind turbines. Offshore wind farms, in particular, have gained traction due to their ability to harness strong and consistent winds, while minimizing land use and visual impact. Researchers are also exploring the potential of floating wind turbines, which could be deployed in deeper waters and further expand the reach of wind energy. Another area of focus in renewable energy research is energy storage, which is crucial for addressing the intermittent nature of solar and wind power. Advances in battery technology, such as the development of high-capacity lithium-ion batteries and the exploration of new materials like solid-state electrolytes, are enabling more efficient and reliable energy storage solutions. Additionally, researchers are investigating the potential of hydrogen as an energy carrier, which could be produced using renewable electricity and used to store and transport energy over long distances. As the world continues to grapple with the urgent need to combat climate change and reduce greenhouse gas emissions, the development and deployment of renewable energy technologies will play a vital role in transitioning towards a more sustainable future. By investing in research and innovation, we can unlock the full potential of these clean energy sources and create a more resilient and environmentally responsible global energy system.')">Prepared Text 8 (Science)</button>
+              </div>
+            </div>
+            <button type="button" class="submit-btn" id="classify-btn">Classify</button>
+            <button type="button" class="clear-btn" id="clear-btn">Clear Text</button>
+        </form>
+
+        <div class="result-section" id="result-section" style="display:none;">
+            <h3>Classification Results:</h3>
+            <ul>
+                <li>Baseline Model: <strong id="baseline-result"></strong></li>
+                <li>SciBERT Model (Chunked Predictions): <strong id="scibert-result"></strong></li>
+                <li>Probability of being Scientific (SciBERT): <strong id="scibert-probability"></strong></li>
+            </ul>
+        </div>
+        <div class="result-section" id="text-stats" style="display:none;">
+            <h3>Text Statistics:</h3>
+            <ul>
+                <li>Number of Words: <strong id="num-words"></strong></li>
+                <li>Number of Unique Words: <strong id="num-unique-words"></strong></li>
+                <li>Number of Sentences: <strong id="num-sentences"></strong></li>
+            </ul>
+        </div>
+        <div class="result-section" id="frequent-words-section" style="display:none;">
+            <h3>Frequent Words (appearing more than twice):</h3>
+            <ul id="frequent-words-list"></ul>
+        </div>
+        <div class="result-section" id="frequent-bigrams-section" style="display:none;">
+            <h3>Frequent Bigrams (appearing more than twice):</h3>
+            <ul id="frequent-bigrams-list"></ul>
+        </div>
+        <div class="attention-weights-visualization" id="attention-weights-visualization" style="display:none;">
+            <h3>Attention Weights Visualization:</h3>
+            <canvas id="attention-weights-chart"></canvas>
+        </div>
+
+        <div class="loader" id="loader">
+            <i class="fas fa-spinner"></i>
+        </div>
     </div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    document.getElementById("classify-btn").addEventListener("click", function () {
-        document.getElementById("loader").style.display = "block"; // Show loader
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.getElementById("prepared-texts-toggle").addEventListener("click", function () {
+            const content = document.getElementById("prepared-texts-content");
+            if (content.style.display === "none" || content.style.display === "") {
+                content.style.display = "block";
+                this.innerHTML = "Choose Prepared Texts ▲";
+            } else {
+                content.style.display = "none";
+                this.innerHTML = "Choose Prepared Texts ▼";
+            }
+        });
 
-        // Get text from textarea
-        var text = document.getElementById("text").value;
+        function insertPreparedText(text) {
+            document.getElementById("text").value = text;
+        }
 
-        // Make POST request to FastAPI backend
-        fetch("/classify", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: new URLSearchParams({
-                text: text
+        document.getElementById("classify-btn").addEventListener("click", function () {
+            document.getElementById("loader").style.display = "block"; // Show loader
+
+            // Get text from textarea
+            var text = document.getElementById("text").value;
+
+            // Make POST request to FastAPI backend
+            fetch("/classify", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                body: new URLSearchParams({
+                    text: text
+                })
             })
-        })
-        .then(response => response.json())
-        .then(data => {
-            // Update classification results
-            document.getElementById("baseline-result").textContent = data.baseline_prediction;
-            document.getElementById("scibert-result").textContent = data.scibert_predictions.join(', ');
-            document.getElementById("scibert-probability").textContent = (data.scibert_probability * 100).toFixed(2) + '%';
+            .then(response => response.json())
+            .then(data => {
+                // Update classification results
+                document.getElementById("baseline-result").textContent = data.baseline_prediction;
+                document.getElementById("scibert-result").textContent = data.scibert_predictions.join(', ');
+                document.getElementById("scibert-probability").textContent = (data.scibert_probability * 100).toFixed(2) + '%';
 
-            // Update text statistics
-            document.getElementById("num-words").textContent = data.num_words;
-            document.getElementById("num-unique-words").textContent = data.num_unique_words;
-            document.getElementById("num-sentences").textContent = data.num_sentences;
+                // Update text statistics
+                document.getElementById("num-words").textContent = data.num_words;
+                document.getElementById("num-unique-words").textContent = data.num_unique_words;
+                document.getElementById("num-sentences").textContent = data.num_sentences;
 
-            // Update frequent words
-            const frequentWordsList = document.getElementById("frequent-words-list");
-            frequentWordsList.innerHTML = '';
-            data.frequent_words.forEach(word => {
-                const li = document.createElement("li");
-                li.textContent = word;
-                frequentWordsList.appendChild(li);
-            });
+                // Update frequent words
+                const frequentWordsList = document.getElementById("frequent-words-list");
+                frequentWordsList.innerHTML = '';
+                data.frequent_words.forEach(word => {
+                    const li = document.createElement("li");
+                    li.textContent = word;
+                    frequentWordsList.appendChild(li);
+                });
 
-            // Update frequent bigrams
-            const frequentBigramsList = document.getElementById("frequent-bigrams-list");
-            frequentBigramsList.innerHTML = '';
-            data.frequent_bigrams.forEach(bigram => {
-                const li = document.createElement("li");
-                li.textContent = bigram;
-                frequentBigramsList.appendChild(li);
-            });
+                // Update frequent bigrams
+                const frequentBigramsList = document.getElementById("frequent-bigrams-list");
+                frequentBigramsList.innerHTML = '';
+                data.frequent_bigrams.forEach(bigram => {
+                    const li = document.createElement("li");
+                    li.textContent = bigram;
+                    frequentBigramsList.appendChild(li);
+                });
 
-            // Show result sections
-            document.getElementById("result-section").style.display = "block";
-            document.getElementById("text-stats").style.display = "block";
-            if (data.frequent_words.length > 0) {
-                document.getElementById("frequent-words-section").style.display = "block";
-            }
-            if (data.frequent_bigrams.length > 0) {
-                document.getElementById("frequent-bigrams-section").style.display = "block";
-            }
+                // Show result sections
+                document.getElementById("result-section").style.display = "block";
+                document.getElementById("text-stats").style.display = "block";
+                if (data.frequent_words.length > 0) {
+                    document.getElementById("frequent-words-section").style.display = "block";
+                }
+                if (data.frequent_bigrams.length > 0) {
+                    document.getElementById("frequent-bigrams-section").style.display = "block";
+                }
 
-            // Show attention weights visualization
-            if (data.attention_weights && data.tokens) {
-                const ctx = document.getElementById('attention-weights-chart').getContext('2d');
-                const chart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: data.tokens,
-                        datasets: [{
-                            label: 'Attention Weights',
-                            data: data.attention_weights,
-                            backgroundColor: 'rgba(46, 139, 87, 0.6)',
-                            borderColor: 'rgba(46, 139, 87, 1)',
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        scales: {
-                            x: {
-                                ticks: {
-                                    color: '#fff'
+                // Show attention weights visualization
+                if (data.attention_weights && data.tokens) {
+                    const ctx = document.getElementById('attention-weights-chart').getContext('2d');
+                    const chart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: data.tokens,
+                            datasets: [{
+                                label: 'Attention Weights',
+                                data: data.attention_weights,
+                                backgroundColor: 'rgba(46, 139, 87, 0.6)',
+                                borderColor: 'rgba(46, 139, 87, 1)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            scales: {
+                                x: {
+                                    ticks: {
+                                        color: '#fff'
+                                    }
+                                },
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        color: '#fff'
+                                    }
                                 }
                             },
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    color: '#fff'
-                                }
-                            }
-                        },
-                        plugins: {
-                            legend: {
-                                labels: {
-                                    color: '#fff'
+                            plugins: {
+                                legend: {
+                                    labels: {
+                                        color: '#fff'
+                                    }
                                 }
                             }
                         }
-                    }
-                });
-                document.getElementById("attention-weights-visualization").style.display = "block";
-            } else {
-                document.getElementById("attention-weights-visualization").style.display = "none";
-            }
+                    });
+                    document.getElementById("attention-weights-visualization").style.display = "block";
+                } else {
+                    document.getElementById("attention-weights-visualization").style.display = "none";
+                }
 
-            document.getElementById("loader").style.display = "none"; // Hide loader
-        })
-        .catch(error => {
-            console.error("Error:", error);
-            document.getElementById("loader").style.display = "none"; // Hide loader
+                document.getElementById("loader").style.display = "none"; // Hide loader
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                document.getElementById("loader").style.display = "none"; // Hide loader
+            });
         });
-    });
 
-    // Clear text button functionality
-    document.getElementById("clear-btn").addEventListener("click", function () {
-        document.getElementById("text").value = ""; // Clear text area
-    });
+        // Clear text button functionality
+        document.getElementById("clear-btn").addEventListener("click", function () {
+            document.getElementById("text").value = ""; // Clear text area
+        });
 
-    // Light/dark mode toggle
-    document.getElementById("mode-toggle").addEventListener("change", function () {
-        document.body.classList.toggle("dark-mode"); // Toggle dark mode
-        document.body.classList.toggle("light-mode"); // Toggle light mode
-    });
-</script>
+        // Light/dark mode toggle
+        document.getElementById("mode-toggle").addEventListener("change", function () {
+            document.body.classList.toggle("dark-mode"); // Toggle dark mode
+            document.body.classList.toggle("light-mode"); // Toggle light mode
+        });
+    </script>
 </body>
 </html>

@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Overview</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #000;
+            color: #fff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        body.dark-mode {
+            background-color: #000;
+            color: #fff;
+        }
+
+        body.light-mode {
+            background-color: #fff;
+            color: #000;
+        }
+
+        .container {
+            max-width: 1000px;
+            padding: 40px;
+            background-color: #333;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+        }
+
+        .container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.7);
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            animation: fadeIn 1s ease;
+        }
+
+        .input-container {
+            margin-bottom: 30px;
+            animation: fadeInUp 1s ease;
+        }
+
+        .input-container label {
+            font-size: 16px;
+            margin-bottom: 10px;
+            display: block;
+            text-align: left;
+        }
+
+        .input-container textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #777;
+            border-radius: 8px;
+            resize: vertical;
+            font-size: 14px;
+            background-color: #555;
+            color: #fff;
+            outline: none;
+        }
+
+        .submit-btn,
+        .clear-btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            color: #fff;
+            background-color: #2e8b57;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            animation: fadeInUp 1s ease;
+        }
+
+        .submit-btn:hover,
+        .clear-btn:hover {
+            background-color: #3cb371;
+        }
+
+        .result-section {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #444;
+            border-radius: 5px;
+            text-align: left;
+            animation: fadeInDown 1s ease;
+        }
+
+        .result-section h3 {
+            margin-bottom: 10px;
+        }
+
+        .result-section ul {
+            padding-left: 20px;
+        }
+
+        .result-section li {
+            margin-bottom: 5px;
+        }
+
+        .loader {
+            position: absolute;
+            top: 50px;
+            right: 20px;
+            display: none;
+            animation: fadeIn 1s ease;
+        }
+
+        .loader i {
+            font-size: 20px;
+            color: #3cb371;
+            animation: rotate 2s linear infinite;
+        }
+
+        @keyframes rotate {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeInUp {
+            0% {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInDown {
+            0% {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .toggle-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        .toggle-label {
+            font-size: 14px;
+            margin-right: 10px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+            background-color: #777;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        .toggle-switch-inner {
+            position: absolute;
+            left: 2px;
+            top: 2px;
+            width: 16px;
+            height: 16px;
+            background-color: #fff;
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+        }
+
+        input[type="checkbox"] {
+            display: none;
+        }
+
+        input[type="checkbox"]:checked + .toggle-switch .toggle-switch-inner {
+            transform: translateX(20px);
+        }
+
+        .attention-weights-visualization {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #444;
+            border-radius: 5px;
+            text-align: left;
+            animation: fadeInDown 1s ease;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 200px;
+            background-color: #222;
+            padding: 20px;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 999;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-header {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .sidebar-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .sidebar-menu {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar-menu li {
+            margin-bottom: 10px;
+        }
+
+        .sidebar-menu a {
+            display: block;
+            padding: 10px;
+            color: #fff;
+            text-decoration: none;
+            transition: background-color 0.3s ease;
+        }
+
+        .sidebar-menu a:hover {
+            background-color: #555;
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            left: 20px;
+            top: 20px;
+            font-size: 24px;
+            color: #fff;
+            cursor: pointer;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-toggle:hover {
+            transform: scale(1.2);
+        }
+
+        .content {
+            margin-left: 200px;
+            padding: 20px;
+            transition: margin-left 0.3s ease;
+        }
+
+        .content.expanded {
+            margin-left: 0;
+        }
+
+        .topic-cloud {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .topic-circle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100px;
+            height: 100px;
+            margin: 10px;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 14px;
+            text-align: center;
+            animation: fadeIn 1s ease;
+            cursor: pointer;
+        }
+
+        .topic-circle:hover {
+            transform: scale(1.1);
+        }
+
+        .circle-1 {
+            background-color: #f39c12;
+        }
+
+        .circle-2 {
+            background-color: #e74c3c;
+        }
+
+        .circle-3 {
+            background-color: #9b59b6;
+        }
+
+        .circle-4 {
+            background-color: #3498db;
+        }
+
+        .circle-5 {
+            background-color: #2ecc71;
+        }
+
+        .circle-6 {
+            background-color: #1abc9c;
+        }
+
+        .circle-7 {
+            background-color: #e67e22;
+        }
+
+        .circle-8 {
+            background-color: #d35400;
+        }
+
+        .circle-9 {
+            background-color: #c0392b;
+        }
+
+        .circle-10 {
+            background-color: #2980b9;
+        }
+
+        .circle-11 {
+            background-color: #8e44ad;
+        }
+
+        .circle-12 {
+            background-color: #16a085;
+        }
+
+        .circle-13 {
+            background-color: #f1c40f;
+        }
+
+        .circle-14 {
+            background-color: #27ae60;
+        }
+
+        .circle-15 {
+            background-color: #bdc3c7;
+        }
+
+        .circle-16 {
+            background-color: #34495e;
+        }
+
+        .circle-17 {
+            background-color: #7f8c8d;
+        }
+
+        .circle-18 {
+            background-color: #ecf0f1;
+            color: #000;
+        }
+
+        .circle-19 {
+            background-color: #95a5a6;
+        }
+
+        .circle-20 {
+            background-color: #e74c3c;
+        }
+
+        .circle-21 {
+            background-color: #3498db;
+        }
+        .circle-22 {
+            background-color: #3e3737;
+            color: #ffffff;
+        }
+
+        .circle-23 {
+            background-color: #b5c7b4;
+        }
+
+        .circle-24 {
+            background-color: #ea7eea;
+        }
+
+        .circle-25 {
+            background-color: #87a2b4;
+        }
+    </style>
+</head>
+<body class="dark-mode">
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h3 class="sidebar-title">Menu</h3>
+        </div>
+        <ul class="sidebar-menu">
+            <li><a href="/">Home</a></li>
+            <li><a href="/model-overview">Model Overview</a></li>
+            <li><a href="/data-overview">Data Overview</a></li>
+            <li><a href="/scibert-overview">SciBERT Overview</a></li>
+            <li><a href="/sources-credentials">Sources/Credentials</a></li>
+        </ul>
+    </div>
+
+    <div class="sidebar-toggle" id="sidebar-toggle">
+        <i class="fas fa-bars"></i>
+    </div>
+
+    <div class="content" id="content">
+        <div class="container">
+            <div class="toggle-container">
+                <span class="toggle-label">Dark Mode:</span>
+                <label class="toggle-switch" for="mode-toggle">
+                    <input type="checkbox" id="mode-toggle">
+                    <span class="toggle-switch-inner"></span>
+                </label>
+            </div>
+            <div class="title">Data Overview</div>
+            <div class="result-section">
+                <h3>Dataset Description</h3>
+                <p>The dataset consists of over 30,000 texts collected from the internet and generated using precise prompts with the ChatGPT model. The use of generated texts, crafted to be informative and relevant, greatly aids in tasks like text classification as it ensures consistency and relevance without the complexities and legal concerns of web scraping. Moreover, generating texts with specific prompts is easier and more controllable than scraping the web for diverse data sources.</p>
+                <p>To facilitate faster model learning and efficient processing, each text was truncated to 400 words. This choice was influenced by resource constraints, but extending the text length in future datasets could further improve model performance.</p>
+            </div>
+            <div class="result-section">
+                <h3>Data Preprocessing</h3>
+                <p>The preprocessing pipeline includes several steps to ensure data quality and consistency:</p>
+                <ul>
+                    <li><strong>Cleaning:</strong> Texts are cleaned by converting to lowercase, removing HTML tags, punctuation, digits, and normalizing unicode characters.</li>
+                    <li><strong>Lemmatization:</strong> Using the SpaCy library, texts are lemmatized to reduce words to their base forms, excluding stopwords, very short words, specific parts of speech, and named entities.</li>
+                    <li><strong>Language Detection:</strong> Texts are filtered to include only English texts using the langdetect library.</li>
+                    <li><strong>Truncation:</strong> Texts are truncated to 400 words to standardize input length and speed up model training.</li>
+                    <li><strong>Padding:</strong> Texts are padded to ensure consistent input length during training.</li>
+                    <li><strong>Frequency Analysis:</strong> To reduce bias and data leakage, words that appeared significantly more frequently in the works of individual authors compared to others were removed.</li>
+                </ul>
+            </div>
+            <div class="result-section">
+                <h3>Data Visualization</h3>
+                <p>It is important to understand that the model may not be perfect for every topic in science and pseudoscience, but it encompasses a broad range of subjects included in its training. The original dataset had a length distribution ranging from short quotes (0-100 words) to extensive scientific publications (1000-10,000 words). This diversity allowed the inclusion of various types of texts after preprocessing, such as abstracts, introductions, conclusions, literature reviews, and complete independent texts. The primary goal was to diversify the types of collected texts and achieve almost a 1-to-1 topic match with the labels. However, this approach limited the number of topics in the training dataset. This issue was addressed during preprocessing and training to ensure the model could generalize from the training data to a wider range of text topics.</p>
+                <img src="/visualizations/hist.png" alt="Histogram of Text Lengths" style="width:880px; height:auto;">
+            </div>
+            <div class="result-section">
+                <h3>Just some topics in the Dataset</h3>
+                <div class="topic-cloud">
+                  <div class="topic-circle circle-1" onclick="showInfo('Suez Crisis', 'The Suez Crisis of 1956 was a diplomatic and military conflict involving Egypt, Israel, Britain, and France. It is a significant historical event studied in international relations and military history. No pseudoscientific aspects are generally associated with this event.')">Suez Crisis</div>
+                  <div class="topic-circle circle-2" onclick="showInfo('Patriot Act', 'The Patriot Act, enacted after 9/11, is a U.S. legislation aimed at enhancing national security but criticized for its impact on civil liberties. It is relevant in discussions about law, politics, and human rights. There are no pseudoscientific aspects typically linked to this topic.')">Patriot Act</div>
+                  <div class="topic-circle circle-3" onclick="showInfo('Quantum Physics', 'Quantum physics is a fundamental branch of physics dealing with phenomena at the atomic and subatomic levels. It forms the basis of many modern technologies and scientific theories. Some pseudoscientific claims misuse quantum physics to support unproven alternative medicine practices like quantum healing.')">Quantum Physics</div>
+                  <div class="topic-circle circle-4" onclick="showInfo('Astrology', 'Astrology is a belief system that suggests a connection between the positions of celestial bodies and events on Earth. It is considered a pseudoscience by the scientific community because it lacks empirical support. Astronomy, on the other hand, is the scientific study of celestial objects.')">Astrology</div>
+                  <div class="topic-circle circle-5" onclick="showInfo('COVID-19 Pandemic', 'The COVID-19 pandemic, caused by the SARS-CoV-2 virus, is a global health crisis that has had profound impacts on societies and economies worldwide. It is a major topic in epidemiology and public health. Pseudoscientific claims have also emerged, such as misinformation about treatments and vaccine efficacy.')">COVID-19 Pandemic</div>
+                  <div class="topic-circle circle-6" onclick="showInfo('Cuban Missile Crisis', 'The Cuban Missile Crisis of 1962 was a pivotal Cold War confrontation between the United States and the Soviet Union over the placement of nuclear missiles in Cuba. It is studied in political science and history. No pseudoscientific elements are typically associated with this event.')">Cuban Missile Crisis</div>
+                  <div class="topic-circle circle-7" onclick="showInfo('Quantum Healing', 'Quantum healing is a term used to describe a form of alternative medicine that claims to heal the body through quantum mechanics principles. It lacks scientific validation and is considered a pseudoscience. Genuine quantum mechanics is a rigorous scientific field with well-established principles.')">Quantum Healing</div>
+                  <div class="topic-circle circle-8" onclick="showInfo('Russian Civil War', 'The Russian Civil War (1917-1923) was a multi-party conflict that followed the Russian Revolution. It is a crucial event in modern history and political science. There are no pseudoscientific claims generally related to this event.')">Russian Civil War</div>
+                  <div class="topic-circle circle-9" onclick="showInfo('Ethical Implications of Genetic Editing', 'Genetic editing, such as CRISPR technology, raises significant ethical questions about its use in humans, biodiversity, and ecological impacts. It is a major topic in bioethics and genetics. Some pseudoscientific claims suggest genetic editing can lead to eugenics or designer babies without considering ethical frameworks.')">Ethical Implications of Genetic Editing</div>
+                  <div class="topic-circle circle-10" onclick="showInfo('Cultural Revolution in China', 'The Cultural Revolution (1966-1976) was a socio-political movement in China led by Mao Zedong. It is an important topic in studies of political science, history, and sociology. No pseudoscientific elements are typically linked to this event.')">Cultural Revolution in China</div>
+                  <div class="topic-circle circle-11" onclick="showInfo('Great Fire of London', 'The Great Fire of London in 1666 was a major conflagration that swept through the central parts of London. It is significant in the study of urban history and disaster management. Some pseudoscientific claims involve conspiracy theories about the cause of the fire.')">Great Fire of London</div>
+                  <div class="topic-circle circle-12" onclick="showInfo('Spanish Civil War', 'The Spanish Civil War (1936-1939) was a conflict between the Republicans and Nationalists, leading to the rise of Francoist Spain. It is a key event in European history and political science. No pseudoscientific elements are generally associated with this event.')">Spanish Civil War</div>
+                  <div class="topic-circle circle-13" onclick="showInfo('Opium Wars', 'The Opium Wars (1839-1842, 1856-1860) were conflicts between China and Western countries, primarily Britain, over trade disputes. They are significant in the study of imperialism and Chinese history. No pseudoscientific aspects are typically linked to this topic.')">Opium Wars</div>
+                  <div class="topic-circle circle-14" onclick="showInfo('French Revolution', 'The French Revolution (1789-1799) was a period of radical social and political change in France. It is a foundational topic in the study of modern history and political science. Some pseudoscientific claims suggest hidden forces or secret societies were behind the revolution.')">French Revolution</div>
+                  <div class="topic-circle circle-15" onclick="showInfo('Industrial Revolution', 'The Industrial Revolution (18th-19th centuries) was a period of major industrialization that transformed economies and societies. It is crucial in economic history and industrial studies. Some pseudoscientific narratives inaccurately claim it was driven by ancient advanced technologies.')">Industrial Revolution</div>
+                  <div class="topic-circle circle-16" onclick="showInfo('World War I', 'World War I (1914-1918) was a global war originating in Europe. It is a significant event in modern history and international relations. Some pseudoscientific claims involve conspiracy theories about the true causes and motivations behind the war.')">World War I</div>
+                  <div class="topic-circle circle-17" onclick="showInfo('World War II', 'World War II (1939-1945) was a global conflict involving most of the world’s nations. It is extensively studied in history, politics, and international relations. Pseudoscientific claims include various conspiracy theories about the war’s events and outcomes.')">World War II</div>
+                  <div class="topic-circle circle-18" onclick="showInfo('Space Race', 'The Space Race was a mid-20th century competition between the Soviet Union and the United States for dominance in space exploration. It is important in the history of science and technology. Pseudoscientific claims include moon landing conspiracy theories.')">Space Race</div>
+                  <div class="topic-circle circle-19" onclick="showInfo('Moon Landing', 'The Moon landing by Apollo 11 in 1969 marked a significant achievement in space exploration. It is a landmark event in the history of science and technology. Some pseudoscientific claims falsely assert the moon landing was faked.')">Moon Landing</div>
+                  <div class="topic-circle circle-20" onclick="showInfo('Climate Change', 'Climate change refers to long-term shifts in temperatures and weather patterns, primarily due to human activities. It is a critical issue in environmental science and policy. Pseudoscientific claims include climate change denial and misinformation.')">Climate Change</div>
+                  <div class="topic-circle circle-21" onclick="showInfo('Blockchain Technology', 'Blockchain technology underlies cryptocurrencies and provides a decentralized method of recording transactions. It is a significant topic in computer science and finance. Some pseudoscientific claims suggest blockchain can solve all societal problems without evidence.')">Blockchain Technology</div>
+                  <div class="topic-circle circle-22" onclick="showInfo('Homeopathy', 'Homeopathy is an alternative medicine practice based on the concept of treating “like with like.” It lacks scientific evidence and is considered a pseudoscience. In contrast, modern medicine relies on empirical evidence and clinical trials.')">Homeopathy</div>
+                  <div class="topic-circle circle-23" onclick="showInfo('Ancient Aliens', 'The ancient aliens hypothesis suggests that extraterrestrial beings visited Earth in ancient times and influenced human civilization. This theory lacks scientific evidence and is considered pseudoscience. Genuine archaeology relies on evidence and rigorous research methods.')">Ancient Aliens</div>
+                  <div class="topic-circle circle-24" onclick="showInfo('Flat Earth Theory', 'The flat Earth theory asserts that the Earth is flat, contradicting extensive scientific evidence of its spherical shape. This theory is considered pseudoscience. Genuine scientific inquiry relies on observations and empirical evidence supporting a round Earth.')">Flat Earth Theory</div>
+              </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showInfo(topic, description) {
+            alert(topic + ": " + description);
+        }
+
+        document.getElementById("mode-toggle").addEventListener("change", function () {
+            document.body.classList.toggle("dark-mode");
+            document.body.classList.toggle("light-mode");
+        });
+
+        document.getElementById("sidebar-toggle").addEventListener("click", function () {
+            document.getElementById("sidebar").classList.toggle("collapsed");
+            document.getElementById("content").classList.toggle("expanded");
+        });
+    </script>
+</body>
+</html>

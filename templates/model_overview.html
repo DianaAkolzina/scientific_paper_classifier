@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scientific Paper Classifier</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #000;
+            color: #fff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        .container {
+            max-width: 900px;
+            padding: 40px;
+            background-color: #333;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+        }
+
+        .container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.7);
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            animation: fadeIn 1s ease;
+        }
+
+        .input-container {
+            margin-bottom: 30px;
+            animation: fadeInUp 1s ease;
+        }
+
+        .input-container label {
+            font-size: 16px;
+            margin-bottom: 10px;
+            display: block;
+            text-align: left;
+        }
+
+        .input-container textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #777;
+            border-radius: 8px;
+            resize: vertical;
+            font-size: 14px;
+            background-color: #555;
+            color: #fff;
+            outline: none;
+        }
+
+        .submit-btn,
+        .clear-btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            color: #fff;
+            background-color: #2e8b57;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            animation: fadeInUp 1s ease;
+        }
+
+        .submit-btn:hover,
+        .clear-btn:hover {
+            background-color: #3cb371;
+        }
+
+        .result-section {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #444;
+            border-radius: 5px;
+            text-align: left;
+            animation: fadeInDown 1s ease;
+        }
+
+        .result-section h3 {
+            margin-bottom: 10px;
+        }
+
+        .result-section ul {
+            padding-left: 20px;
+        }
+
+        .result-section li {
+            margin-bottom: 5px;
+        }
+
+        pre {
+            background-color: #000;
+            color: rgb(130, 152, 130);
+            padding: 10px;
+            border-radius: 5px;
+            text-align: left;
+            font-size: 14px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .block-diagram {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #444;
+            border-radius: 5px;
+            animation: fadeInDown 1s ease;
+        }
+
+        .block-diagram .block {
+            width: 800px;
+            height: 60px;
+            margin: 1px;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #2e8b57;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .block-diagram .block:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        .block-diagram .arrow {
+            width: 30px;
+            height: 30px;
+            border-left: 5px solid #2e8b57;
+            border-bottom: 5px solid #2e8b57;
+            transform: rotate(-45deg);
+            margin: 10px 0;
+        }
+
+        .confusion-matrix {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #444;
+            border-radius: 5px;
+            text-align: center;
+            animation: fadeInDown 1s ease;
+        }
+
+        .confusion-matrix table {
+            margin: 0 auto;
+            border-collapse: collapse;
+        }
+
+        .confusion-matrix th,
+        .confusion-matrix td {
+            padding: 10px;
+            border: 1px solid #fff;
+        }
+
+        .confusion-matrix th {
+            background-color: #2e8b57;
+        }
+
+        .confusion-matrix td {
+            font-weight: bold;
+        }
+
+        .confusion-matrix .highlight {
+            background-color: #3cb371;
+        }
+
+        .loader {
+            position: absolute;
+            top: 50px;
+            right: 20px;
+            display: none;
+            animation: fadeIn 1s ease;
+        }
+
+        .loader i {
+            font-size: 20px;
+            color: #3cb371;
+            animation: rotate 2s linear infinite;
+        }
+
+        @keyframes rotate {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeInUp {
+            0% {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInDown {
+            0% {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .toggle-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        .toggle-label {
+            font-size: 14px;
+            margin-right: 10px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+            background-color: #777;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        .toggle-switch-inner {
+            position: absolute;
+            left: 2px;
+            top: 2px;
+            width: 16px;
+            height: 16px;
+            background-color: #fff;
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+        }
+
+        input[type="checkbox"] {
+            display: none;
+        }
+
+        input[type="checkbox"]:checked + .toggle-switch .toggle-switch-inner {
+            transform: translateX(20px);
+        }
+
+        .attention-weights-visualization {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #444;
+            border-radius: 5px;
+            text-align: left;
+            animation: fadeInDown 1s ease;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 200px;
+            background-color: #222;
+            padding: 20px;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 999;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-header {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .sidebar-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .sidebar-menu {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar-menu li {
+            margin-bottom: 10px;
+        }
+
+        .sidebar-menu a {
+            display: block;
+            padding: 10px;
+            color: #fff;
+            text-decoration: none;
+            transition: background-color 0.3s ease;
+        }
+
+        .sidebar-menu a:hover {
+            background-color: #555;
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            left: 20px;
+            top: 20px;
+            font-size: 24px;
+            color: #fff;
+            cursor: pointer;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-toggle:hover {
+            transform: scale(1.2);
+        }
+
+        .content {
+            margin-left: 200px;
+            padding: 20px;
+            transition: margin-left 0.3s ease;
+        }
+
+        .content.expanded {
+            margin-left: 0;
+        }
+
+        .prepared-texts {
+            margin-bottom: 30px;
+            animation: fadeInUp 1s ease;
+        }
+
+        .prepared-texts h3 {
+            cursor: pointer;
+        }
+
+        .prepared-texts-content {
+            display: none;
+            margin-top: 10px;
+        }
+
+        .prepared-texts-content button {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body class="dark-mode">
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <h3 class="sidebar-title">Menu</h3>
+    </div>
+    <ul class="sidebar-menu">
+        <li><a href="/">Home</a></li>
+        <li><a href="/model-overview">Model Overview</a></li>
+        <li><a href="/data-overview">Data Overview</a></li>
+        <li><a href="/scibert-overview">SciBERT Overview</a></li>
+        <li><a href="/sources-credentials">Sources/Credentials</a></li>
+    </ul>
+</div>
+
+<div class="sidebar-toggle" id="sidebar-toggle">
+    <i class="fas fa-bars"></i>
+</div>
+    <div class="container">
+        <div class="title">Scientific Paper Classifier</div>
+        <form id="classification-form">
+            <div class="input-container">
+                <label for="text">Enter text:</label>
+                <textarea name="text" id="text" rows="6" placeholder="Paste your scientific text here..."></textarea>
+            </div>
+            <button type="button" class="submit-btn" id="classify-btn">Classify</button>
+            <button type="button" class="clear-btn" id="clear-btn">Clear Text</button>
+        </form>
+
+        <div class="result-section" id="result-section" style="display:none;">
+            <h3>Classification Results:</h3>
+            <ul>
+                <li>Baseline Model: <strong id="baseline-result"></strong></li>
+                <li>SciBERT Model (Chunked Predictions): <strong id="scibert-result"></strong></li>
+                <li>Probability of being Scientific (SciBERT): <strong id="scibert-probability"></strong></li>
+            </ul>
+        </div>
+
+        <div class="result-section" id="text-stats" style="display:none;">
+            <h3>Text Statistics:</h3>
+            <ul>
+                <li>Number of Words: <strong id="num-words"></strong></li>
+                <li>Number of Unique Words: <strong id="num-unique-words"></strong></li>
+                <li>Number of Sentences: <strong id="num-sentences"></strong></li>
+            </ul>
+        </div>
+
+        <div class="result-section" id="frequent-words-section" style="display:none;">
+            <h3>Frequent Words (appearing more than twice):</h3>
+            <ul id="frequent-words-list"></ul>
+        </div>
+
+        <div class="result-section" id="frequent-bigrams-section" style="display:none;">
+            <h3>Frequent Bigrams (appearing more than twice):</h3>
+            <ul id="frequent-bigrams-list"></ul>
+        </div>
+
+        <div class="attention-weights-visualization" id="attention-weights-visualization" style="display:none;">
+          <h3>Attention Weights Visualization:</h3>
+          <canvas id="attention-weights-chart"></canvas>
+      </div>
+
+      <div class="loader" id="loader">
+          <i class="fas fa-spinner"></i>
+      </div>
+
+      <div class="result-section">
+          <h3>SciBERT Model</h3>
+          <p>The SciBERT model represents a state-of-the-art deep learning approach specifically designed for scientific text classification. Built upon the BERT (Bidirectional Encoder Representations from Transformers) architecture, SciBERT leverages self-attention mechanisms to effectively capture contextual information from input text. Pre-trained on an extensive corpus of scientific literature, SciBERT is capable of acquiring domain-specific knowledge and excels in processing scientific texts. This pre-training phase allows SciBERT to understand complex scientific terminologies and contexts unique to scientific literature. Following pre-training, the model undergoes fine-tuning on labeled datasets tailored to the specific classification task, significantly enhancing its performance compared to traditional machine learning methods and general-purpose language models.</p>
+          <p>The architecture of the SciBERT model integrates an LSTM (Long Short-Term Memory) layer and a linear layer with a ReLU (Rectified Linear Unit) activation function. The LSTM layer is crucial for capturing sequential dependencies within the data, which is essential for tasks that require an understanding of the order and context of words within sentences. The linear layer, combined with the ReLU activation function, allows the model to learn and represent complex patterns in the data. This architecture is chosen for its ability to leverage the strengths of pre-trained language models for feature extraction and sequential models for capturing temporal dependencies, thus providing a robust solution for text classification.</p>
+          <p>The current test accuracy of the SciBERT model stands at an impressive 96%, reflecting its high efficacy in classifying scientific texts. This high accuracy demonstrates the model's ability to generalize well to unseen data. However, there are several avenues for further improvement:</p>
+          <ul>
+              <li><strong>Advanced Fine-Tuning Techniques:</strong> Techniques such as multi-task learning, where the model is simultaneously trained on multiple related tasks, can help in improving its performance. Ensemble methods, which combine predictions from multiple models, can also enhance accuracy and robustness.</li>
+              <li><strong>Domain-Specific Data Augmentation:</strong> Incorporating more domain-specific data during the pre-training phase can further refine the model's understanding of scientific texts. This can involve training on larger and more diverse datasets of scientific literature.</li>
+              <li><strong>Hyperparameter Optimization:</strong> Systematically tuning the hyperparameters of the model, such as the learning rate, batch size, and number of layers, can lead to performance gains.</li>
+              <li><strong>Regularization Techniques:</strong> Applying advanced regularization techniques, such as layer normalization and advanced dropout strategies, can help in reducing overfitting and improving the model's generalization capabilities.</li>
+          </ul>
+          <pre><code class="python">
+class SciBERTClassifier(nn.Module):
+  def __init__(self, bert_model, num_labels, dropout=0.1, hidden_size=256, num_layers=2, bidirectional=True):
+      super(SciBERTClassifier, self).__init__()
+      self.bert = bert_model
+      self.dropout = nn.Dropout(dropout)
+      self.hidden_size = hidden_size
+      self.num_layers = num_layers
+      self.bidirectional = bidirectional
+
+      self.lstm = nn.LSTM(
+          input_size=self.bert.config.hidden_size,
+          hidden_size=hidden_size,
+          num_layers=num_layers,
+          dropout=dropout,
+          bidirectional=bidirectional,
+          batch_first=True
+      )
+
+      self.linear1 = nn.Linear(hidden_size * (2 if bidirectional else 1), hidden_size)
+      self.relu = nn.ReLU()
+      self.linear2 = nn.Linear(hidden_size, num_labels)
+
+  def forward(self, input_ids, attention_mask):
+      outputs = self.bert(input_ids, attention_mask=attention_mask, output_attentions=True)
+      sequence_output = outputs.last_hidden_state
+      attention_weights = outputs.attentions  # Extract the attention weights
+
+      lstm_output, _ = self.lstm(sequence_output)
+
+      mean_lstm_output = torch.mean(lstm_output, dim=1)
+
+      linear1_output = self.linear1(mean_lstm_output)
+      relu_output = self.relu(linear1_output)
+      final_output = self.linear2(relu_output)
+
+      return final_output, attention_weights
+          </code></pre>
+      </div>
+
+      <div class="block-diagram">
+          <h3>SciBERT Model Structure</h3>
+          <div class="block">Input Text</div>
+          <div class="arrow"></div>
+          <div class="block">Tokenization</div>
+          <div class="arrow"></div>
+          <div class="block">SciBERT Model</div>
+          <div class="arrow"></div>
+          <div class="block">LSTM Layer</div>
+          <div class="arrow"></div>
+          <div class="block">Linear + ReLU</div>
+          <div class="arrow"></div>
+          <div class="block">Output Labels</div>
+      </div>
+
+      <div class="result-section">
+          <h3>Training and Evaluation</h3>
+          <p>Training the SciBERT model involves multiple epochs, where the model iteratively learns from the training data. The optimizer utilized is AdamW (Adaptive Moment Estimation with Weight Decay), which is well-suited for handling sparse gradients and has been shown to converge faster than traditional gradient descent optimizers. The learning rate is set to 2e-5, which balances the trade-off between convergence speed and the risk of overshooting the optimal solution.</p>
+          <p>During each epoch, batches of training data are fed through the model. Each batch consists of input IDs, attention masks, and labels. The input IDs represent the tokenized text, while the attention masks indicate which tokens should be attended to. The labels correspond to the ground truth classifications for each text sample.</p>
+          <p>The training loop follows these steps:</p>
+          <ul>
+              <li>Set the model to training mode to enable gradient updates.</li>
+              <li>Initialize the total loss for the epoch to zero.</li>
+              <li>For each batch in the training data:
+                  <ul>
+                      <li>Move the batch data to the appropriate device (CPU/GPU).</li>
+                      <li>Perform a forward pass through the model to obtain the predictions and attention weights.</li>
+                      <li>Compute the loss using cross-entropy loss, which measures the difference between the predicted probabilities and the true labels.</li>
+                      <li>Accumulate the loss for tracking purposes.</li>
+                      <li>Perform a backward pass to compute the gradients.</li>
+                      <li>Update the model parameters using the optimizer.</li>
+                  </ul>
+              </li>
+              <li>Compute the average loss for the epoch and log it for monitoring the training process.</li>
+          </ul>
+          <p>After training, the model is evaluated on the test dataset. The evaluation process involves the following steps:</p>
+          <ul>
+              <li>Set the model to evaluation mode to disable gradient updates and enable efficient inference.</li>
+              <li>Initialize lists to store predictions, true labels, and attention weights.</li>
+              <li>For each batch in the test data:
+                  <ul>
+                      <li>Move the batch data to the appropriate device (CPU/GPU).</li>
+                      <li>Perform a forward pass through the model to obtain the predictions and attention weights.</li>
+                      <li>Store the predictions, true labels, and attention weights for further analysis.</li>
+                  </ul>
+              </li>
+              <li>Flatten the lists of predictions and true labels for computing evaluation metrics.</li>
+              <li>Compute the accuracy and other relevant metrics to assess the model's performance on the test set.</li>
+          </ul>
+          <pre><code class="python">
+epochs = 10
+learning_rate = 2e-5
+optimizer = AdamW(model.parameters(), lr=learning_rate)
+
+for epoch in range(epochs):
+  model.train()
+  total_loss = 0
+
+  for batch in tqdm(train_dataloader, desc=f'Epoch {epoch + 1}/{epochs}'):
+      batch = tuple(t.to(device) for t in batch)
+      input_ids, attention_mask, labels = batch
+
+      optimizer.zero_grad()
+      outputs, attention_weights = model(input_ids, attention_mask)  # Capture attention weights
+      loss = nn.CrossEntropyLoss()(outputs, labels)
+      total_loss += loss.item()
+
+      loss.backward()
+      optimizer.step()
+
+  avg_loss = total_loss / len(train_dataloader)
+  logging.info(f'Epoch {epoch + 1}/{epochs}, Average Loss: {avg_loss}')
+
+model.eval()
+predictions, true_labels = []
+attention_weights_list = []
+
+for batch in tqdm(test_dataloader, desc='Evaluating'):
+  batch = tuple(t.to(device) for t in batch)
+  input_ids, attention_mask, labels = batch
+
+  with torch.no_grad():
+      outputs, attention_weights = model(input_ids, attention_mask)
+
+  logits = outputs.detach().cpu().numpy()
+  label_ids = labels.cpu().numpy()
+  predictions.append(logits)
+  true_labels.append(label_ids)
+  attention_weights_list.append(attention_weights)
+
+  flat_predictions = [item for sublist in predictions for item in sublist]
+flat_predictions = np.argmax(flat_predictions, axis=1).flatten()
+flat_true_labels = [item for sublist in true_labels for item in sublist]
+          </code></pre>
+      </div>
+
+      <div class="result-section">
+          <h3>Data Tokenization</h3>
+          <p>Data tokenization is a critical preprocessing step that prepares textual data for model training. This process involves converting raw text into a numerical format that can be ingested by the model. We use a pre-trained tokenizer to achieve this, which ensures that the input text is converted into token IDs that the model can understand.</p>
+          <p>The tokenizer performs several functions:</p>
+          <ul>
+              <li><strong>Tokenization:</strong> The text is split into individual tokens, which could be words or subwords, depending on the tokenizer's design.</li>
+              <li><strong>Adding Special Tokens:</strong> Special tokens such as [CLS] (classification token) and [SEP] (separator token) are added to the text as required by the BERT architecture.</li>
+              <li><strong>Padding and Truncation:</strong> The tokenized sequences are either padded or truncated to a consistent length (specified by <code>max_length</code>), ensuring uniform input sizes across batches. Padding tokens are added to shorter sequences, while longer sequences are truncated to fit the maximum length.</li>
+              <li><strong>Generating Attention Masks:</strong> Attention masks are created to distinguish between real tokens and padding tokens. This helps the model focus on the actual content of the input text and ignore the padding during attention calculations.</li>
+          </ul>
+          <p>The tokenization process outputs two main components for each text input:</p>
+          <ul>
+              <li><strong>Input IDs:</strong> Numerical representations of the tokens in the text.</li>
+              <li><strong>Attention Masks:</strong> Binary masks indicating which tokens should be attended to (1) and which are padding (0).</li>
+          </ul>
+          <p>These tokenized components are then used to create <code>TensorDataset</code> objects, which facilitate efficient batch processing during model training and evaluation. The following Python code snippet demonstrates the tokenization process:</p>
+          <pre><code class="python">
+max_length = 256
+batch_size = 200
+
+def tokenize_data(texts, labels):
+    input_ids = []
+    attention_masks = []
+
+    for text in texts:
+        encoded_dict = tokenizer.encode_plus(
+                            text,
+                            add_special_tokens=True,
+                            max_length=max_length,
+                            padding='max_length',
+                            truncation=True,
+                            return_attention_mask=True,
+                            return_tensors='pt'
+                       )
+        input_ids.append(encoded_dict['input_ids'])
+        attention_masks.append(encoded_dict['attention_mask'])
+
+    input_ids = torch.cat(input_ids, dim=0)
+    attention_masks = torch.cat(attention_masks, dim=0)
+
+    labels = labels.astype(int)
+    labels = torch.tensor(labels.values)
+
+    return TensorDataset(input_ids, attention_masks, labels)
+
+train_dataset = tokenize_data(X_train, y_train)
+test_dataset = tokenize_data(X_test, y_test)
+          </code></pre>
+      </div>
+
+      <div class="result-section">
+          <h3>Predicting Labels</h3>
+          <p>Predicting labels for new text involves a series of steps where the input text is preprocessed and fed into the trained SciBERT model. The model then outputs the predicted label along with the attention weights. These attention weights provide insights into which parts of the text the model focused on during prediction, aiding in the interpretability of the model's decisions and helping to identify any potential biases.</p>
+          <p>The prediction process is as follows:</p>
+          <ul>
+              <li><strong>Tokenization:</strong> The input text is tokenized using the same pre-trained tokenizer used during training. This ensures consistency in how the text is represented.</li>
+              <li><strong>Encoding:</strong> The tokenizer converts the text into input IDs and attention masks. The input IDs are the numerical representations of the tokens, and the attention masks indicate which tokens should be attended to.</li>
+              <li><strong>Model Inference:</strong> The tokenized inputs are fed into the trained SciBERT model. The model processes the inputs and produces outputs, which include the logits (raw predictions) and the attention weights.</li>
+              <li><strong>Label Prediction:</strong> The logits are passed through a softmax layer to obtain probabilities for each class. The class with the highest probability is selected as the predicted label.</li>
+              <li><strong>Attention Weights Analysis:</strong> The attention weights are analyzed to understand which tokens the model focused on, providing interpretability to the predictions.</li>
+          </ul>
+          <p>The following Python code snippet demonstrates the prediction process:</p>
+          <pre><code class="python">
+def predict_label(text, model, tokenizer):
+    encoded_dict = tokenizer.encode_plus(
+                        text,
+                        add_special_tokens=True,
+                        max_length=max_length,
+                        padding='max_length',
+                        truncation=True,
+                        return_attention_mask=True,
+                        return_tensors='pt'
+                   )
+    input_ids = encoded_dict['input_ids'].to(device)
+    attention_mask = encoded_dict['attention_mask'].to(device)
+
+    with torch.no_grad():
+        outputs, attention_weights = model(input_ids, attention_mask)
+
+    predicted_label = torch.argmax(outputs, dim=1).item()
+    return predicted_label, attention_weights
+          </code></pre>
+      </div>
+
+      <div class="confusion-matrix">
+          <h3>Baseline Model Confusion Matrix SVM</h3>
+          <table>
+              <tr>
+                  <th></th>
+                  <th>Predicted Science</th>
+                  <th>Predicted Pseudo</th>
+              </tr>
+              <tr>
+                  <th>True Science</th>
+                  <td class="highlight">2580</td>
+                  <td>10</td>
+              </tr>
+              <tr>
+                  <th>True Pseudo</th>
+                  <td>207</td>
+                  <td class="highlight">794</td>
+              </tr>
+          </table>
+      </div>
+
+      <div class="confusion-matrix">
+          <h3>SciBERT Model Confusion Matrix</h3>
+          <table>
+              <tr>
+                  <th></th>
+                  <th>Predicted Science</th>
+                  <th>Predicted Pseudo</th>
+              </tr>
+              <tr>
+                  <th>True Science</th>
+                  <td class="highlight">1238</td>
+                  <td>123</td>
+              </tr>
+              <tr>
+                  <th>True Pseudo</th>
+                  <td>64</td>
+                  <td class="highlight">3407</td>
+              </tr>
+          </table>
+      </div>
+
+  </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.getElementById("classify-btn").addEventListener("click", function () {
+            document.getElementById("loader").style.display = "block"; // Show loader
+
+            // Get text from textarea
+            var text = document.getElementById("text").value;
+
+            // Make POST request to FastAPI backend
+            fetch("/classify", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                body: new URLSearchParams({
+                    text: text
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Update classification results
+                document.getElementById("baseline-result").textContent = data.baseline_prediction;
+                document.getElementById("scibert-result").textContent = data.scibert_predictions.join(', ');
+                document.getElementById("scibert-probability").textContent = (data.scibert_probability * 100).toFixed(2) + '%';
+
+                // Update text statistics
+                document.getElementById("num-words").textContent = data.num_words;
+                document.getElementById("num-unique-words").textContent = data.num_unique_words;
+                document.getElementById("num-sentences").textContent = data.num_sentences;
+
+                // Update frequent words
+                const frequentWordsList = document.getElementById("frequent-words-list");
+                frequentWordsList.innerHTML = '';
+                data.frequent_words.forEach(word => {
+                    const li = document.createElement("li");
+                    li.textContent = word;
+                    frequentWordsList.appendChild(li);
+                });
+
+                // Update frequent bigrams
+                const frequentBigramsList = document.getElementById("frequent-bigrams-list");
+                frequentBigramsList.innerHTML = '';
+                data.frequent_bigrams.forEach(bigram => {
+                    const li = document.createElement("li");
+                    li.textContent = bigram;
+                    frequentBigramsList.appendChild(li);
+                });
+
+                // Show result sections
+                document.getElementById("result-section").style.display = "block";
+                document.getElementById("text-stats").style.display = "block";
+                if (data.frequent_words.length > 0) {
+                    document.getElementById("frequent-words-section").style.display = "block";
+                }
+                if (data.frequent_bigrams.length > 0) {
+                    document.getElementById("frequent-bigrams-section").style.display = "block";
+                }
+
+                // Show attention weights visualization
+                if (data.attention_weights && data.tokens) {
+                    const ctx = document.getElementById('attention-weights-chart').getContext('2d');
+                    const chart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: data.tokens,
+                            datasets: [{
+                                label: 'Attention Weights',
+                                data: data.attention_weights,
+                                backgroundColor: 'rgba(46, 139, 87, 0.6)',
+                                borderColor: 'rgba(46, 139, 87, 1)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            scales: {
+                                x: {
+                                    ticks: {
+                                        color: '#fff'
+                                    }
+                                },
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        color: '#fff'
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    labels: {
+                                        color: '#fff'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    document.getElementById("attention-weights-visualization").style.display = "block";
+                } else {
+                    document.getElementById("attention-weights-visualization").style.display = "none";
+                }
+
+                document.getElementById("loader").style.display = "none"; // Hide loader
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                document.getElementById("loader").style.display = "none"; // Hide loader
+            });
+        });
+
+        // Clear text button functionality
+        document.getElementById("clear-btn").addEventListener("click", function () {
+            document.getElementById("text").value = ""; // Clear text area
+        });
+
+        // Light/dark mode toggle
+        document.getElementById("mode-toggle").addEventListener("change", function () {
+            document.body.classList.toggle("dark-mode"); // Toggle dark mode
+            document.body.classList.toggle("light-mode"); // Toggle light mode
+        });
+
+        document.getElementById("sidebar-toggle").addEventListener("click", function () {
+            document.getElementById("sidebar").classList.toggle("collapsed");
+            document.getElementById("content").classList.toggle("expanded");
+        });
+    </script>
+</body>
+</html>

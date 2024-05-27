@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SciBERT Overview</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #000;
+            color: #fff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        body.dark-mode {
+            background-color: #000;
+            color: #fff;
+        }
+
+        body.light-mode {
+            background-color: #fff;
+            color: #000;
+        }
+
+        .container {
+            max-width: 1000px;
+            padding: 40px;
+            background-color: #333;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+        }
+
+        .container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.7);
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            animation: fadeIn 1s ease;
+        }
+
+        .input-container {
+            margin-bottom: 30px;
+            animation: fadeInUp 1s ease;
+        }
+
+        .input-container label {
+            font-size: 16px;
+            margin-bottom: 10px;
+            display: block;
+            text-align: left;
+        }
+
+        .input-container textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #777;
+            border-radius: 8px;
+            resize: vertical;
+            font-size: 14px;
+            background-color: #555;
+            color: #fff;
+            outline: none;
+        }
+
+        .submit-btn,
+        .clear-btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            color: #fff;
+            background-color: #2e8b57;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            animation: fadeInUp 1s ease;
+        }
+
+        .submit-btn:hover,
+        .clear-btn:hover {
+            background-color: #3cb371;
+        }
+
+        .result-section {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #444;
+            border-radius: 5px;
+            text-align: left;
+            animation: fadeInDown 1s ease;
+        }
+
+        .result-section h3 {
+            margin-bottom: 10px;
+        }
+
+        .result-section ul {
+            padding-left: 20px;
+        }
+
+        .result-section li {
+            margin-bottom: 5px;
+        }
+
+        .loader {
+            position: absolute;
+            top: 50px;
+            right: 20px;
+            display: none;
+            animation: fadeIn 1s ease;
+        }
+
+        .loader i {
+            font-size: 20px;
+            color: #3cb371;
+            animation: rotate 2s linear infinite;
+        }
+
+        @keyframes rotate {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeInUp {
+            0% {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInDown {
+            0% {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .toggle-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        .toggle-label {
+            font-size: 14px;
+            margin-right: 10px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+            background-color: #777;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        .toggle-switch-inner {
+            position: absolute;
+            left: 2px;
+            top: 2px;
+            width: 16px;
+            height: 16px;
+            background-color: #fff;
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+        }
+
+        input[type="checkbox"] {
+            display: none;
+        }
+
+        input[type="checkbox"]:checked + .toggle-switch .toggle-switch-inner {
+            transform: translateX(20px);
+        }
+
+        .attention-weights-visualization {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #444;
+            border-radius: 5px;
+            text-align: left;
+            animation: fadeInDown 1s ease;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 200px;
+            background-color: #222;
+            padding: 20px;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 999;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-header {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .sidebar-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .sidebar-menu {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar-menu li {
+            margin-bottom: 10px;
+        }
+
+        .sidebar-menu a {
+            display: block;
+            padding: 10px;
+            color: #fff;
+            text-decoration: none;
+            transition: background-color 0.3s ease;
+        }
+
+        .sidebar-menu a:hover {
+            background-color: #555;
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            left: 20px;
+            top: 20px;
+            font-size: 24px;
+            color: #fff;
+            cursor: pointer;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-toggle:hover {
+            transform: scale(1.2);
+        }
+
+        .content {
+            margin-left: 200px;
+            padding: 20px;
+            transition: margin-left 0.3s ease;
+        }
+
+        .content.expanded {
+            margin-left: 0;
+        }
+
+        .dropdown {
+            margin-top: 20px;
+        }
+
+        .dropdown-toggle::after {
+            margin-left: 10px;
+        }
+
+        .circle {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .table-container {
+            margin-top: 30px;
+            animation: fadeIn 1s ease;
+        }
+
+        .table-container table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table-container th,
+        .table-container td {
+            border: 1px solid #777;
+            padding: 10px;
+            text-align: left;
+        }
+
+        .table-container th {
+            background-color: #555;
+        }
+
+        .table-container td {
+            background-color: #333;
+        }
+
+        .table-container tbody tr:hover {
+            background-color: #444;
+        }
+    </style>
+</head>
+<body class="dark-mode">
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h3 class="sidebar-title">Menu</h3>
+        </div>
+        <ul class="sidebar-menu">
+            <li><a href="/">Home</a></li>
+            <li><a href="/model-overview">Model Overview</a></li>
+            <li><a href="/data-overview">Data Overview</a></li>
+            <li><a href="/scibert-overview">SciBERT Overview</a></li>
+            <li><a href="/sources-credentials">Sources/Credentials</a></li>
+        </ul>
+    </div>
+
+    <div class="sidebar-toggle" id="sidebar-toggle">
+        <i class="fas fa-bars"></i>
+    </div>
+
+    <div class="content" id="content">
+        <div class="container">
+            <div class="toggle-container">
+                <span class="toggle-label">Dark Mode:</span>
+                <label class="toggle-switch" for="mode-toggle">
+                    <input type="checkbox" id="mode-toggle">
+                    <span class="toggle-switch-inner"></span>
+                </label>
+            </div>
+            <div class="title">Scientific Paper Classifier</div>
+            <form id="classification-form">
+                <div class="input-container">
+                    <label for="text">Enter text:</label>
+                    <textarea name="text" id="text" rows="6" placeholder="Paste your scientific text here..."></textarea>
+                </div>
+                <button type="button" class="submit-btn" id="classify-btn">Classify</button>
+                <button type="button" class="clear-btn" id="clear-btn">Clear Text</button>
+            </form>
+
+            <div class="result-section" id="result-section" style="display:none;">
+                <h3>Classification Results:</h3>
+                <ul>
+                    <li>Baseline Model: <strong id="baseline-result"></strong></li>
+                    <li>SciBERT Model (Chunked Predictions): <strong id="scibert-result"></strong></li>
+                    <li>Probability of being Scientific (SciBERT): <strong id="scibert-probability"></strong></li>
+                </ul>
+            </div>
+            <div class="result-section" id="text-stats" style="display:none;">
+                <h3>Text Statistics:</h3>
+                <ul>
+                    <li>Number of Words: <strong id="num-words"></strong></li>
+                    <li>Number of Unique Words: <strong id="num-unique-words"></strong></li>
+                    <li>Number of Sentences: <strong id="num-sentences"></strong></li>
+                </ul>
+            </div>
+            <div class="result-section" id="frequent-words-section" style="display:none;">
+                <h3>Frequent Words (appearing more than twice):</h3>
+                <ul id="frequent-words-list"></ul>
+            </div>
+            <div class="result-section" id="frequent-bigrams-section" style="display:none;">
+                <h3>Frequent Bigrams (appearing more than twice):</h3>
+                <ul id="frequent-bigrams-list"></ul>
+            </div>
+            <div class="attention-weights-visualization" id="attention-weights-visualization" style="display:none;">
+                <h3>Attention Weights Visualization:</h3>
+                <canvas id="attention-weights-chart"></canvas>
+            </div>
+
+            <div class="loader" id="loader">
+                <i class="fas fa-spinner"></i>
+            </div>
+
+            <div class="dropdown">
+                <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    SciBERT Overview Sections
+                </button>
+                <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                    <a class="dropdown-item" href="#architecture">SciBERT Architecture</a>
+                    <a class="dropdown-item" href="#fine-tuning">Fine-Tuning SciBERT</a>
+                    <a class="dropdown-item" href="#performance">SciBERT Performance</a>
+                    <a class="dropdown-item" href="#bert-models">How BERT-type Models Work</a>
+                    <a class="dropdown-item" href="#future-research">Future Directions for Research</a>
+                </div>
+            </div>
+
+            <div id="architecture" class="result-section">
+                <h3>SciBERT Architecture</h3>
+                <p>SciBERT is a specialized variant of the BERT (Bidirectional Encoder Representations from Transformers) model, optimized for scientific text classification tasks. It builds upon the original BERT architecture introduced by Devlin et al. (2019), which itself is based on the Transformer architecture by Vaswani et al. (2017). The Transformer architecture utilizes self-attention mechanisms to process input text and capture long-range dependencies effectively.</p>
+                <p>The key components of SciBERT's architecture include:</p>
+                <ul>
+                    <li><strong>Tokenization:</strong> SciBERT employs a WordPiece tokenizer to split text into subwords, facilitating the handling of rare words and enhancing generalization from training data.</li>
+                    <li><strong>Embedding Layers:</strong> These layers convert token IDs into dense vector representations, capturing semantic information about the words and subwords. The embeddings combine token, position, and segment information.</li>
+                    <li><strong>Transformer Layers:</strong> SciBERT uses multiple transformer layers, each containing self-attention heads and feed-forward neural networks. Self-attention heads compute key, value, and query vectors for each input token, generating weighted representations that capture contextual information.</li>
+                    <li><strong>Self-Attention Mechanism:</strong> The self-attention mechanism allows the model to dynamically weigh the importance of different tokens in a sequence, considering their relevance to each other.</li>
+                    <li><strong>Output Layers:</strong> The final layers produce contextualized representations of the input text, suitable for various downstream tasks like text classification and named entity recognition.</li>
+                </ul>
+                <p>SciBERT is pre-trained on a large multi-domain corpus of scientific publications, utilizing two self-supervised learning tasks: Masked Language Modeling (MLM) and Next Sentence Prediction (NSP). In the MLM task, random tokens are masked, and the model learns to predict them, while the NSP task involves predicting if two input sentences are sequentially coherent.</p>
+            </div>
+
+            <div id="fine-tuning" class="result-section">
+                <h3>Fine-Tuning SciBERT</h3>
+                <p>Fine-tuning SciBERT involves adapting the pre-trained model to specific tasks using labeled datasets. The process includes:</p>
+                <ul>
+                    <li><strong>Dataset Preparation:</strong> Curating a labeled dataset relevant to the target task, such as scientific text classification. The dataset is split into training, validation, and test sets to evaluate model performance.</li>
+                    <li><strong>Model Initialization:</strong> Initializing SciBERT with pre-trained weights to leverage the knowledge learned from the scientific corpus.</li>
+                    <li><strong>Hyperparameter Tuning:</strong> Selecting optimal hyperparameters, including learning rate, batch size, and number of epochs, to enhance model performance.</li>
+                    <li><strong>Training Loop:</strong> Implementing a training loop that feeds batches of tokenized text into the model, computes the loss using cross-entropy loss, and updates model parameters through backpropagation.</li>
+                    <li><strong>Evaluation:</strong> Regularly evaluating the model on the validation set to monitor performance and prevent overfitting. The model's final performance is assessed on the test set.</li>
+                </ul>
+                <p>The fine-tuning process enables SciBERT to adapt its pre-trained representations to the specific patterns and requirements of the target task, resulting in high accuracy and robustness.</p>
+            </div>
+
+            <div id="performance" class="result-section">
+                <h3>SciBERT Performance</h3>
+                <p>SciBERT excels in scientific text classification tasks due to its domain-specific pre-training and advanced architecture. Its performance metrics include:</p>
+                <ul>
+                    <li><strong>Accuracy:</strong> Measures the proportion of correct predictions made by the model. SciBERT achieves a high accuracy of 96% on scientific text classification tasks.</li>
+                    <li><strong>Precision and Recall:</strong> Precision evaluates the accuracy of positive predictions, while recall assesses the model's ability to identify all positive instances. SciBERT maintains a balanced performance across these metrics.</li>
+                    <li><strong>F1 Score:</strong> The harmonic mean of precision and recall, providing a single metric that balances both aspects. High F1 scores indicate SciBERT's robust performance.</li>
+                    <li><strong>Comparative Analysis:</strong> SciBERT's performance is compared with baseline models such as Support Vector Machines (SVMs) and general-purpose language models. It consistently outperforms these models due to its domain-specific pre-training and advanced architecture.</li>
+                </ul>
+                <p>The current test accuracy of our fine-tuned SciBERT model stands at 96%, showcasing its capability to handle scientific text classification tasks effectively. Future improvements can be achieved through advanced fine-tuning techniques, data augmentation, and hyperparameter optimization.</p>
+            </div>
+
+            <div id="bert-models" class="result-section">
+                <h3>How BERT-type Models Work</h3>
+                <p>Transformer-based models have revolutionized Natural Language Processing (NLP) by offering enhanced parallelization and better modeling of long-range dependencies. BERT (Bidirectional Encoder Representations from Transformers) is one of the most well-known Transformer-based models, achieving state-of-the-art results in various NLP benchmarks.</p>
+                <p>BERT operates in two main stages: pre-training and fine-tuning.</p>
+                <ul>
+                    <li><strong>Pre-training:</strong> BERT is pre-trained on a large corpus using two self-supervised tasks: Masked Language Modeling (MLM) and Next Sentence Prediction (NSP). In MLM, random tokens in the input are masked, and the model learns to predict them, capturing contextual information. In NSP, the model predicts if two input sentences are sequentially coherent.</li>
+                    <li><strong>Fine-tuning:</strong> After pre-training, BERT is fine-tuned on specific downstream tasks using labeled datasets. This involves adding task-specific layers on top of BERT and optimizing the entire model, allowing it to adapt its pre-trained knowledge to the target task.</li>
+                </ul>
+                <p>BERT's architecture comprises multiple layers of Transformer encoders, each containing self-attention heads and feed-forward neural networks. Self-attention mechanisms enable the model to weigh the importance of different tokens dynamically, capturing intricate dependencies within the text.</p>
+                <p>Studies have shown that BERT encodes various types of linguistic and world knowledge, making it highly versatile. However, its success has also raised questions about overparameterization and model compression. Researchers continue to explore ways to optimize BERT's architecture, improve its training regime, and enhance its performance through techniques like knowledge distillation, quantization, and pruning.</p>
+            </div>
+
+            <div id="future-research" class="result-section">
+                <h3>Future Directions for Research</h3>
+                <p>Despite the significant advancements brought by BERT and its variants like SciBERT, there remain many unanswered questions about their inner workings and potential improvements. Future research directions include:</p>
+                <ul>
+                    <li><strong>Understanding Model Behavior:</strong> Conducting more studies to uncover the mechanisms behind BERT's performance and how it represents different types of knowledge.</li>
+                    <li><strong>Enhancing Model Efficiency:</strong> Developing techniques to reduce model size and computational requirements without compromising performance.</li>
+                    <li><strong>Improving Training Objectives:</strong> Experimenting with new pre-training and fine-tuning objectives to further enhance the model's capabilities.</li>
+                    <li><strong>Domain-Specific Adaptation:</strong> Exploring ways to better adapt BERT to specific domains and tasks, including incorporating more domain-specific data during pre-training.</li>
+                    <li><strong>Interpreting Model Decisions:</strong> Improving methods to interpret and explain the model's predictions, making it more transparent and reliable.</li>
+                </ul>
+                <p>Continued research in these areas will help refine BERT-based models, making them even more powerful and versatile for a wide range of NLP applications.</p>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Section</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><a href="#architecture">SciBERT Architecture</a></td>
+                            <td>Details the architecture and components of the SciBERT model.</td>
+                        </tr>
+                        <tr>
+                            <td><a href="#fine-tuning">Fine-Tuning SciBERT</a></td>
+                            <td>Explains the process of adapting SciBERT to specific tasks.</td>
+                        </tr>
+                        <tr>
+                            <td><a href="#performance">SciBERT Performance</a></td>
+                            <td>Discusses the performance metrics and advantages of SciBERT.</td>
+                        </tr>
+                        <tr>
+                            <td><a href="#bert-models">How BERT-type Models Work</a></td>
+                            <td>Provides an overview of the functioning and training of BERT models.</td>
+                        </tr>
+                        <tr>
+                            <td><a href="#future-research">Future Directions for Research</a></td>
+                            <td>Outlines potential future research areas for improving BERT models.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.getElementById("classify-btn").addEventListener("click", function () {
+            document.getElementById("loader").style.display = "block"; // Show loader
+
+            // Get text from textarea
+            var text = document.getElementById("text").value;
+
+            // Make POST request to FastAPI backend
+            fetch("/classify", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                body: new URLSearchParams({
+                    text: text
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Update classification results
+                document.getElementById("baseline-result").textContent = data.baseline_prediction;
+                document.getElementById("scibert-result").textContent = data.scibert_predictions.join(', ');
+                document.getElementById("scibert-probability").textContent = (data.scibert_probability * 100).toFixed(2) + '%';
+
+                // Update text statistics
+                document.getElementById("num-words").textContent = data.num_words;
+                document.getElementById("num-unique-words").textContent = data.num_unique_words;
+                document.getElementById("num-sentences").textContent = data.num_sentences;
+
+                // Update frequent words
+                const frequentWordsList = document.getElementById("frequent-words-list");
+                frequentWordsList.innerHTML = '';
+                data.frequent_words.forEach(word => {
+                    const li = document.createElement("li");
+                    li.textContent = word;
+                    frequentWordsList.appendChild(li);
+                });
+
+                // Update frequent bigrams
+                const frequentBigramsList = document.getElementById("frequent-bigrams-list");
+                frequentBigramsList.innerHTML = '';
+                data.frequent_bigrams.forEach(bigram => {
+                    const li = document.createElement("li");
+                    li.textContent = bigram;
+                    frequentBigramsList.appendChild(li);
+                });
+
+                // Show result sections
+                document.getElementById("result-section").style.display = "block";
+                document.getElementById("text-stats").style.display = "block";
+                if (data.frequent_words.length > 0) {
+                    document.getElementById("frequent-words-section").style.display = "block";
+                }
+                if (data.frequent_bigrams.length > 0) {
+                    document.getElementById("frequent-bigrams-section").style.display = "block";
+                }
+
+                // Show attention weights visualization
+                if (data.attention_weights && data.tokens) {
+                    const ctx = document.getElementById('attention-weights-chart').getContext('2d');
+                    const chart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: data.tokens,
+                            datasets: [{
+                                label: 'Attention Weights',
+                                data: data.attention_weights,
+                                backgroundColor: 'rgba(46, 139, 87, 0.6)',
+                                borderColor: 'rgba(46, 139, 87, 1)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            scales: {
+                                x: {
+                                    ticks: {
+                                        color: '#fff'
+                                    }
+                                },
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        color: '#fff'
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    labels: {
+                                        color: '#fff'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    document.getElementById("attention-weights-visualization").style.display = "block";
+                } else {
+                    document.getElementById("attention-weights-visualization").style.display = "none";
+                }
+
+                document.getElementById("loader").style.display = "none"; // Hide loader
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                document.getElementById("loader").style.display = "none"; // Hide loader
+            });
+        });
+
+        // Clear text button functionality
+        document.getElementById("clear-btn").addEventListener("click", function () {
+            document.getElementById("text").value = ""; // Clear text area
+        });
+
+        // Light/dark mode toggle
+        document.getElementById("mode-toggle").addEventListener("change", function () {
+            document.body.classList.toggle("dark-mode"); // Toggle dark mode
+            document.body.classList.toggle("light-mode"); // Toggle light mode
+        });
+
+        document.getElementById("sidebar-toggle").addEventListener("click", function () {
+            document.getElementById("sidebar").classList.toggle("collapsed");
+            document.getElementById("content").classList.toggle("expanded");
+        });
+    </script>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
